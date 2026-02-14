@@ -5,6 +5,12 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+if (MSVC)
+    add_compile_options(/W4)
+else()
+    add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+add_compile_options(-g)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include(FetchContent)
@@ -17,7 +23,7 @@ find_package(EnTT ${ENTT_VERSION} QUIET)
 
 if (EnTT_FOUND)
   message(STATUS "EnTT ${EnTT_VERSION}")
-else ()
+else()
   message(STATUS "No EnTT, fetching from Github...")
 
   FetchContent_Declare(
@@ -37,7 +43,7 @@ find_package(SFML ${SFML_MIN_VERSION} COMPONENTS Graphics Window System Audio QU
 
 if (SFML_FOUND)
   message(STATUS "SFML ${SFML_VERSION}")
-else ()
+else()
   message(STATUS "No SFML, fetching from Github...")
 
   set(SFML_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
