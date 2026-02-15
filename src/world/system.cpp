@@ -19,9 +19,9 @@ void rebuildMesh(TileMapComp& map) {
             sf::Vertex* quad = &map.vertices[vIdx];
 
             // Position calculation
-            float px = x * map.tileSize;
-            float py = -y * map.tileSize; // invert: convert from world-cord into draw-coord
             float ts = map.tileSize;
+            float px = x * ts;
+            float py = -y * ts - ts; // invert: convert from world-cord into draw-coord
 
             // Define the 6 vertices for 2 triangles (Quad replacement)
             // Triangle 1 (Top-Left, Top-Right, Bottom-Left)

@@ -41,7 +41,7 @@ int main() {
 
     // Load a texture (from the examples resources)
     sf::Texture texture;
-    if (!texture.loadFromFile("resources/warn.png")) {
+    if (!texture.loadFromFile("resources/copper-wall.png")) {
         return 1;
     }
     sf::Texture tileset;
@@ -64,12 +64,12 @@ int main() {
 
     // Create a player entity
     const auto player = registry.create();
-    registry.emplace<PositionComp>(player, sf::Vector2f(400.f, 300.f), world);
-    registry.emplace<PhysicsComp>(player, sf::Vector2f(0.f, 0.f), 1600.f);
+    registry.emplace<PositionComp>(player, sf::Vector2f(64.f, 64.f), world);
+    registry.emplace<PhysicsComp>(player, sf::Vector2f(0.f, 0.f), 1600.f, sf::FloatRect{{-16.f, -16.f}, {32.f, 32.f}});
     registry.emplace<InputMovementComp>(player, 600.f, 3000.f);
 
     sf::Sprite playerSprite(texture);
-    playerSprite.setColor(sf::Color::Green);        // tint green to distinguish
+    playerSprite.setColor(sf::Color::Green); // tint green to distinguish
     playerSprite.setOrigin(sf::Vector2f(texture.getSize()) / 2.f);
     registry.emplace<SpriteComp>(player, std::move(playerSprite));
 

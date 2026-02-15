@@ -3,15 +3,15 @@
 #include "core/events.hpp"
 #include "input/components.hpp"
 #include "physics/components.hpp"
+#include "physics/events.hpp"
 #include "utility/utility.hpp"
 #include "input/system.hpp"
 
 REGISTER_SYSTEM(InputSystem);
 
 void InputSystem::init(entt::registry& reg) {
-    entt::dispatcher& dispatch = ev_dispatcher(reg);
-
-    dispatch.sink<UpdateEvent>().connect<&InputSystem::update>(this);
+    subscribeGlobalEvent<UpdateEvent, &InputSystem::update>(reg, this);
+    subscribeLocalEvent<InputMovementComp, GetDragEvent, &InputMovementComp::OnGetDrag>(reg);
 }
 
 void InputSystem::update(const UpdateEvent& ev) {
@@ -28,6 +28,7 @@ void InputSystem::update(const UpdateEvent& ev) {
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down))
             input.y = -1;
 
+        mover.lastInput = (sf::Vector2f)input;
         if (input.x == 0 && input.y == 0)
             continue;
 
@@ -36,10 +37,13 @@ void InputSystem::update(const UpdateEvent& ev) {
         // Update player velocity component
         PhysicsComp& playerVelComp = ev.registry->get<PhysicsComp>(entity);
         sf::Vector2f deltaVel = targetVel - playerVelComp.velocity;
-        // Counteract drag
-        if (playerVelComp.velocity != zeroVec)
-            playerVelComp.velocity += playerVelComp.velocity.normalized() * vel.drag * ev.dt;
         if (deltaVel != zeroVec)
             playerVelComp.velocity += deltaVel.normalized() * mover.accel * ev.dt;
     }
+}
+
+// no drag
+void InputMovementComp::OnGetDrag(GetDragEvent& ev) {
+    if (lastInput != zeroVec)
+        *ev.drag = 0.f;
 }

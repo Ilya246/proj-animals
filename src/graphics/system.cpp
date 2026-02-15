@@ -12,9 +12,7 @@
 REGISTER_SYSTEM(DrawSystem);
 
 void DrawSystem::init(entt::registry& reg) {
-    entt::dispatcher& dispatch = ev_dispatcher(reg);
-
-    dispatch.sink<UpdateEvent>().connect<&DrawSystem::update>(this);
+    subscribeGlobalEvent<UpdateEvent, &DrawSystem::update>(reg, this);
 }
 
 void DrawSystem::update(const UpdateEvent& ev) {

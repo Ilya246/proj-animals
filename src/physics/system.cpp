@@ -4,6 +4,7 @@
 #include "core/events.hpp"
 #include "entt/entity/fwd.hpp"
 #include "physics/components.hpp"
+#include "physics/events.hpp"
 #include "utility/utility.hpp"
 #include "world/components.hpp"
 #include "physics/system.hpp"
@@ -11,50 +12,104 @@
 REGISTER_SYSTEM(PhysicsSystem);
 
 void PhysicsSystem::init(entt::registry& reg) {
-    entt::dispatcher& dispatch = ev_dispatcher(reg);
+    subscribeGlobalEvent<UpdateEvent, &PhysicsSystem::update>(reg, this);
+}
 
-    dispatch.sink<UpdateEvent>().connect<&PhysicsSystem::update>(this);
+// Checks rect-tile overlap
+bool checkTileCollision(const sf::FloatRect& worldRect, const TileMapComp& map) {
+    const float squeeze = 31.f / 32.f;
+    float tileSize = map.tileSize;
+
+    int minTileX = (int)(std::floor(worldRect.position.x / tileSize));
+    int maxTileX = (int)(std::floor((worldRect.position.x + worldRect.size.x * squeeze) / tileSize));
+    int minTileY = (int)(std::floor(worldRect.position.y / tileSize));
+    int maxTileY = (int)(std::floor((worldRect.position.y + worldRect.size.y * squeeze) / tileSize));
+
+    for (int y = minTileY; y <= maxTileY; ++y) {
+        for (int x = minTileX; x <= maxTileX; ++x) {
+            // Out of bounds counts as wall
+            if (x < 0 || x >= map.width || y < 0 || y >= map.height) {
+                return true;
+            }
+            if (map.grid[x + y * map.width] == TileType::Wall) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+sf::Vector2f resolveCollision(const sf::Vector2f& currentPos, const sf::Vector2f& desiredPos, const sf::FloatRect& bounds, const TileMapComp& map) {
+    sf::Vector2f shift = desiredPos - currentPos;
+    // Try moving only on X axis
+    sf::Vector2f tryX = sf::Vector2f(desiredPos.x, currentPos.y);
+    sf::FloatRect rectX = bounds;
+    rectX.position += tryX;
+    // Try moving only on Y axis
+    sf::Vector2f tryY = sf::Vector2f(currentPos.x, desiredPos.y);
+    sf::FloatRect rectY = bounds;
+    rectY.position += tryY;
+    // Try moving in full
+    sf::FloatRect rectXY = bounds;
+    rectXY.position += desiredPos;
+
+    bool xBlocked = checkTileCollision(rectX, map);
+    bool yBlocked = checkTileCollision(rectY, map);
+    bool fullBlocked = checkTileCollision(rectXY, map);
+
+    // Where to move to?
+    sf::Vector2f endPos = currentPos;
+    // Prevent getting stuck diagonally
+    if (fullBlocked && !xBlocked && !yBlocked) {
+        if (shift.x > shift.y) endPos.x = desiredPos.x;
+        else endPos.y = desiredPos.y;
+    } else {
+        if (!xBlocked) endPos.x = desiredPos.x;
+        if (!yBlocked) endPos.y = desiredPos.y;
+    }
+    return endPos;
 }
 
 void PhysicsSystem::update(const UpdateEvent& ev) {
     entt::registry& reg = *ev.registry;
 
     auto view = ev.registry->view<PositionComp, PhysicsComp>();
-    for (auto [entity, pos, vel] : view.each()) {
-        // Update position
-        sf::Vector2f newPos = pos.position + vel.velocity * ev.dt;
-        auto [world, newWorldPos] = Physics::getWorldPos(pos.parent, newPos, reg);
+    for (auto [entity, pos, phys] : view.each()) {
+        sf::Vector2f desiredPos = pos.position + phys.velocity * ev.dt;
+        auto [world, desiredWorldPos] = Physics::getWorldPos(pos.parent, desiredPos, reg);
 
         // Check tile collision
         if (TileMapComp* mapComp = reg.try_get<TileMapComp>(world)) {
-            if (vel.velocity != zeroVec && MapUtil::getTileAt(newWorldPos, *mapComp) == TileType::Wall) {
-                float tileSize = mapComp->tileSize;
-                sf::Vector2i intNewPos = MapUtil::getTilePos(newPos, tileSize);
-                sf::Vector2f tilePos = (sf::Vector2f)intNewPos * tileSize;
-                sf::Vector2f relTile = tilePos - pos.position;
-                sf::Vector2f normVel = vel.velocity.normalized();
-                float int1 = relTile.dot(normVel);
-                float int2 = int1 + normVel.x * tileSize; // dot if we add +1 to tilePos.x
-                float int3 = int1 + normVel.y * tileSize; // dot if we add +1 to tilePos.y
-                float int4 = int1 + (normVel.x + normVel.y) * tileSize; // if both
-                float intMin = std::min(std::min(int1, int2), std::min(int3, int4));
-                sf::Vector2f intP = relTile - normVel * intMin;
-                float halfTile = tileSize * 0.5f;
-                if (std::abs(intP.y - halfTile) >= halfTile) vel.velocity.y *= 0.f;
-                if (std::abs(intP.x - halfTile) >= halfTile) vel.velocity.x *= 0.f;
-                newPos = pos.position + vel.velocity * ev.dt;
+            if (phys.velocity != zeroVec) {
+                // Check our post-move bounds
+                sf::FloatRect desiredWorldRect = phys.bounds;
+                desiredWorldRect.position += desiredWorldPos;
+
+                // Will we be colliding?
+                if (checkTileCollision(desiredWorldRect, *mapComp)) {
+                    sf::Vector2f currentWorldPos = Physics::worldPos(entity, reg);
+                    sf::Vector2f resolvedWorldPos = resolveCollision(currentWorldPos, desiredWorldPos, phys.bounds, *mapComp);
+                    desiredPos = pos.position + resolvedWorldPos - currentWorldPos;
+
+                    if (ev.dt != 0.f) {
+                        phys.velocity = (desiredPos - pos.position) / ev.dt;
+                    }
+                }
             }
         }
 
-        pos.position = newPos;
+        pos.position = desiredPos;
 
-        // Update velocity
-        if (vel.velocity != zeroVec) {
-            float dragBy = vel.drag * ev.dt;
-            if (vel.velocity.lengthSquared() <= dragBy)
-                vel.velocity = zeroVec;
+        // Update velocity, apply drag
+        if (phys.velocity != zeroVec) {
+            float drag = phys.drag;
+            raiseLocalEvent(reg, entity, GetDragEvent(&drag));
+            float dragBy = drag * ev.dt;
+            if (phys.velocity.lengthSquared() <= dragBy * dragBy)
+                phys.velocity = zeroVec;
             else
-                vel.velocity -= vel.velocity.normalized() * dragBy;
+                phys.velocity -= phys.velocity.normalized() * dragBy;
         }
     }
 }
