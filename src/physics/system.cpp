@@ -74,8 +74,8 @@ sf::Vector2f resolveCollision(const sf::Vector2f& currentPos, const sf::Vector2f
 void PhysicsSystem::update(const UpdateEvent& ev) {
     entt::registry& reg = *ev.registry;
 
-    auto view = ev.registry->view<PositionComp, PhysicsComp>();
-    for (auto [entity, pos, phys] : view.each()) {
+    auto view = ev.registry->view<PhysicsComp, PositionComp>();
+    for (auto [entity, phys, pos] : view.each()) {
         sf::Vector2f desiredPos = pos.position + phys.velocity * ev.dt;
         auto [world, desiredWorldPos] = Physics::getWorldPos(pos.parent, desiredPos, reg);
 
@@ -117,25 +117,29 @@ void PhysicsSystem::update(const UpdateEvent& ev) {
 namespace Physics {
 
 entt::entity getWorld(const entt::entity& ent, const entt::registry& reg) {
-    const PositionComp& comp = reg.get<PositionComp>(ent);
-    if (comp.parent == ent)
-        return ent;
-    return getWorld(comp.parent, reg);
-}
-
-sf::Vector2f worldPos(const entt::entity& ent, const entt::registry& reg) {
-    const PositionComp& comp = reg.get<PositionComp>(ent);
-    if (comp.parent == ent)
-        return comp.position;
-    return worldPos(comp.parent, reg) + comp.position;
+    const PositionComp* comp = &reg.get<PositionComp>(ent);
+    const entt::entity* cEnt = &ent;
+    while (comp->parent != *cEnt) {
+        cEnt = &comp->parent;
+        comp = &reg.get<PositionComp>(ent);
+    }
+    return *cEnt;
 }
 
 std::pair<entt::entity, sf::Vector2f> getWorldPos(const entt::entity& ent, const entt::registry& reg) {
-    const PositionComp& comp = reg.get<PositionComp>(ent);
-    if (comp.parent == ent)
-        return {ent, comp.position};
-    auto lower = getWorldPos(comp.parent, reg);
-    return {lower.first, lower.second + comp.position};
+    const PositionComp* comp = &reg.get<PositionComp>(ent);
+    const entt::entity* cEnt = &ent;
+    sf::Vector2f pos = comp->position;
+    while (comp->parent != *cEnt) {
+        cEnt = &comp->parent;
+        comp = &reg.get<PositionComp>(*cEnt);
+        pos += comp->position;
+    }
+    return {*cEnt, pos};
+}
+
+sf::Vector2f worldPos(const entt::entity& ent, const entt::registry& reg) {
+    return getWorldPos(ent, reg).second;
 }
 
 std::pair<entt::entity, sf::Vector2f> getWorldPos(const entt::entity& parent, const sf::Vector2f& pos, const entt::registry& reg) {

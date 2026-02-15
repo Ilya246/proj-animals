@@ -15,8 +15,8 @@ void InputSystem::init(entt::registry& reg) {
 }
 
 void InputSystem::update(const UpdateEvent& ev) {
-    auto view = ev.registry->view<PhysicsComp, InputMovementComp>();
-    for (auto [entity, vel, mover] : view.each()) {
+    auto view = ev.registry->view<InputMovementComp, PhysicsComp>();
+    for (auto [entity, mover, vel] : view.each()) {
         // Player input (arrow keys)
         sf::Vector2i input(0, 0);
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left))

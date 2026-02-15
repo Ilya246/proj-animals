@@ -22,8 +22,8 @@ void DrawSystem::update(const UpdateEvent& ev) {
 
     // Rendering system: update sprite positions and draw
     window.clear(sf::Color::Black);
-    auto cameraView = reg.view<PositionComp, CameraComp>();
-    for (auto [camEntity, camPosComp, camComp] : cameraView.each()) {
+    auto cameraView = reg.view<CameraComp, PositionComp>();
+    for (auto [camEntity, camComp, camPosComp] : cameraView.each()) {
         auto [worldEnt, camPos] = Physics::getWorldPos(camEntity, reg);
         camPos.y *= -1.f; // translate to draw coordinates
         camComp.view.setCenter(camPos);
@@ -37,9 +37,11 @@ void DrawSystem::update(const UpdateEvent& ev) {
             window.draw(mapComp->vertices, states);
         }
 
-        auto drawView = reg.view<PositionComp, SpriteComp>();
-        for (auto [entity, pos, spr] : drawView.each()) {
-            sf::Vector2f spritePos = Physics::worldPos(entity, reg);
+        auto drawView = reg.view<SpriteComp, PositionComp>();
+        for (auto [entity, spr, pos] : drawView.each()) {
+            auto [thisWorld, spritePos] = Physics::getWorldPos(entity, reg);
+            if (thisWorld != worldEnt)
+                continue;
             spritePos.y *= -1.f;
             spr.sprite.setPosition(spritePos);
             window.draw(spr.sprite);
