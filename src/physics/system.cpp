@@ -9,8 +9,6 @@
 #include "world/components.hpp"
 #include "physics/system.hpp"
 
-REGISTER_SYSTEM(PhysicsSystem);
-
 void PhysicsSystem::init(entt::registry& reg) {
     subscribeGlobalEvent<UpdateEvent, &PhysicsSystem::update>(reg, this);
 }

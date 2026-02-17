@@ -2,7 +2,7 @@
 #include "core/events.hpp"
 #include "core/system.hpp"
 
-struct DrawSystem : SystemBase {
+struct DrawSystem : System<DrawSystem> {
     private:
         virtual void init(entt::registry&) override;
 

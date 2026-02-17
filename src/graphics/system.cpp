@@ -9,8 +9,6 @@
 #include "physics/system.hpp"
 #include "world/components.hpp"
 
-REGISTER_SYSTEM(DrawSystem);
-
 void DrawSystem::init(entt::registry& reg) {
     subscribeGlobalEvent<UpdateEvent, &DrawSystem::update>(reg, this);
 }

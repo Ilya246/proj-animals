@@ -30,7 +30,7 @@ int main() {
 
     // Initialise systems
     std::priority_queue<std::pair<int, SystemBase*>> init_queue;
-    for (auto& sys_ptr : systems) {
+    for (auto& sys_ptr : get_systems()) {
         init_queue.push({sys_ptr->initPriority(), sys_ptr.get()});
     }
     while (init_queue.size() != 0) {

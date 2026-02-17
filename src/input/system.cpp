@@ -7,8 +7,6 @@
 #include "utility/utility.hpp"
 #include "input/system.hpp"
 
-REGISTER_SYSTEM(InputSystem);
-
 void InputSystem::init(entt::registry& reg) {
     subscribeGlobalEvent<UpdateEvent, &InputSystem::update>(reg, this);
     subscribeLocalEvent<InputMovementComp, GetDragEvent, &InputMovementComp::OnGetDrag>(reg);

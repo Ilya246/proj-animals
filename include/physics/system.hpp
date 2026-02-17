@@ -4,7 +4,7 @@
 #include "core/events.hpp"
 #include "core/system.hpp"
 
-struct PhysicsSystem : SystemBase {
+struct PhysicsSystem : System<PhysicsSystem> {
     private:
         virtual void init(entt::registry&) override;
         virtual int initPriority() override { return 16; };

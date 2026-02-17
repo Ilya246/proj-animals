@@ -13,14 +13,24 @@ struct SystemBase {
     virtual int initPriority() { return 0; };
 };
 
-inline std::vector<std::unique_ptr<SystemBase>> systems;
+inline std::vector<std::unique_ptr<SystemBase>>& get_systems() {
+    static std::vector<std::unique_ptr<SystemBase>> systems;
+    return systems;
+}
 
 template<typename TSys>
-struct SystemRegistrar {
-    SystemRegistrar() {
-        systems.push_back(std::make_unique<TSys>());
-    }
-};
+struct System : SystemBase {
+    struct Registrar {
+        Registrar() {
+            std::unique_ptr<TSys> ptr = std::make_unique<TSys>();
+            system = ptr.get();
+            get_systems().push_back(std::move(ptr));
+        }
+    };
 
-#define REGISTER_SYSTEM(SystemType) \
-    static SystemRegistrar<SystemType> __SystemType##_registrar
+    inline static Registrar registrar = {};
+    inline static TSys* system;
+
+    // hack so registrar is instantiated
+    static_assert(&registrar != (void*)0);
+};
