@@ -77,7 +77,7 @@ int main() {
 
     const auto camera = registry.create();
     registry.emplace<PositionComp>(camera, sf::Vector2f(0.f, 0.f), player);
-    registry.emplace<CameraComp>(camera, 1.f, sf::View());
+    registry.emplace<CameraComp>(camera, 1.f, 0);
 
     // Create several ball entities with random positions/velocities
     constexpr std::size_t ballCount = 10;

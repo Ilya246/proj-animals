@@ -26,9 +26,9 @@ void DrawSystem::update(const UpdateEvent& ev) {
     // however, this is rendering, so multithreading is probably out of the question
     // Map of map_entity->render_params
     static std::map<entt::entity, std::vector<std::tuple<entt::entity, sf::Vector2f, RenderableComp&>>> renderables;
-    // Vector of z_level->entity for drawing in order
+    // Vector of cam->[z_level->entity] for drawing in order
     // This can be optimised, but that shouldn't be needed unless we're drawing really large amounts of entities
-    static std::vector<std::pair<int32_t, entt::entity>> drawables;
+    static std::vector<std::pair<int32_t, std::pair<entt::entity, std::vector<std::pair<int32_t, entt::entity>>>>> drawables;
 
     window.clear(sf::Color::Black);
 
@@ -43,6 +43,7 @@ void DrawSystem::update(const UpdateEvent& ev) {
 
     // Now go over each camera and render entities in its world
     // This is inefficient if we have 2 cameras in one world, but this is currently UB anyway
+    drawables.clear();
     auto cameraView = reg.view<CameraComp, PositionComp>();
     for (auto [camEntity, camComp, camPosComp] : cameraView.each()) {
         // Check where this camera is and set up its view to have SFML do coordinate translation for us
@@ -51,24 +52,29 @@ void DrawSystem::update(const UpdateEvent& ev) {
         camComp.view.setCenter(camDrawPos);
         sf::Vector2f viewSize = (sf::Vector2f)windowSize / camComp.scale;
         camComp.view.setSize(viewSize);
-        window.setView(camComp.view);
 
         // Anything intersecting with those bounds should be rendered
         sf::FloatRect camBounds{camPos - viewSize * 0.5f, viewSize};
 
-        drawables.clear();
-        for (auto [entity, entPos, spr] : renderables[worldEnt]) {
+        drawables.push_back({camComp.zLevel, {camEntity, {}}});
+
+        for (auto& [entity, entPos, spr] : renderables[worldEnt]) {
             // Check if the entity's draw-bounds overlap with the camera's vision bounds
             sf::FloatRect drawBounds {camBounds.position - spr.Bounds.size + spr.Bounds.position, camBounds.size + spr.Bounds.size};
             if (drawBounds.contains(entPos))
-                drawables.push_back({spr.zLevel, entity});
+                drawables.back().second.second.push_back({spr.zLevel, entity});
         }
+    }
 
-        std::sort(drawables.begin(), drawables.end());
+    std::sort(drawables.begin(), drawables.end());
+    for (auto& [camZ, camDraw] : drawables) {
+        auto cam = camDraw.first;
+        auto draw = camDraw.second;
+        std::sort(draw.begin(), draw.end());
+        window.setView(reg.get<CameraComp>(cam).view);
 
-        for (auto [zLevel, entity] : drawables) {
+        for (auto [zLevel, entity] : draw)
             raiseLocalEvent(reg, entity, RenderEvent(entity, &reg, &window));
-        }
     }
     window.display();
 }

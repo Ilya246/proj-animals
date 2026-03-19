@@ -17,7 +17,7 @@ enum ZLevel : int32_t {
 };
 
 struct RenderableComp {
-    int zLevel = z_entity;
+    int32_t zLevel = z_entity;
     // Bounds for culling
     sf::FloatRect Bounds{sf::Vector2f(-1.f, -1.f), sf::Vector2f(2.f, 2.f)};
 };
@@ -31,5 +31,6 @@ struct SpriteComp {
 // Renders entities with the same world parent in bounds. 
 struct CameraComp {
     float scale;
-    sf::View view;
+    int32_t zLevel; // Camera's own z-level. Takes priority over renderable z-level.
+    sf::View view = {};
 };
