@@ -119,7 +119,7 @@ entt::entity getWorld(const entt::entity& ent, const entt::registry& reg) {
     const entt::entity* cEnt = &ent;
     while (comp->parent != *cEnt) {
         cEnt = &comp->parent;
-        comp = &reg.get<PositionComp>(ent);
+        comp = &reg.get<PositionComp>(*cEnt);
     }
     return *cEnt;
 }
