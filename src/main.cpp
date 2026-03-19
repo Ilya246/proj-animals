@@ -52,6 +52,7 @@ int main() {
     const auto world = registry.create();
     registry.emplace<PositionComp>(world, sf::Vector2f(0.f, 0.f), world);
     TileMapComp& mapComp = registry.emplace<TileMapComp>(world, 64, 64, 32.f, &tileset);
+    registry.emplace<RenderableComp>(world, z_world);
     // Add some random walls
     mapComp.grid.resize(mapComp.height * mapComp.width);
     for (int i = 0; i < 200; ++i) {
@@ -60,7 +61,7 @@ int main() {
         mapComp.grid[x + y * mapComp.width] = TileType::Wall;
     }
     // Generate the efficient vertex array
-    MapUtil::rebuildMesh(mapComp);
+    MapUtil::rebuildMesh(world, mapComp, registry);
 
     // Create a player entity
     const auto player = registry.create();
@@ -72,6 +73,7 @@ int main() {
     playerSprite.setColor(sf::Color::Green); // tint green to distinguish
     playerSprite.setOrigin(sf::Vector2f(texture.getSize()) / 2.f);
     registry.emplace<SpriteComp>(player, std::move(playerSprite));
+    registry.emplace<RenderableComp>(player, z_entity);
 
     const auto camera = registry.create();
     registry.emplace<PositionComp>(camera, sf::Vector2f(0.f, 0.f), player);
@@ -92,6 +94,7 @@ int main() {
         // Scale down a bit so balls are smaller
         ballSprite.setScale({0.5f, 0.5f});
         registry.emplace<SpriteComp>(ball, std::move(ballSprite));
+        registry.emplace<RenderableComp>(ball, z_entity);
     }
 
     sf::Clock clock;

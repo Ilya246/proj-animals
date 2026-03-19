@@ -1,8 +1,23 @@
+#include "core/events.hpp"
+#include "entt/entity/fwd.hpp"
+#include "graphics/components.hpp"
+#include "graphics/events.hpp"
 #include "world/components.hpp"
+#include "world/systems.hpp"
+
+void WorldSystem::init(entt::registry& reg) {
+    subscribeLocalEvent<TileMapComp, RenderEvent, &TileMapComp::OnRender>(reg);
+}
+
+void TileMapComp::OnRender(RenderEvent& ev) {
+    sf::RenderStates states;
+    states.texture = texture;
+    ev.window->draw(vertices, states);
+}
 
 namespace MapUtil {
 
-void rebuildMesh(TileMapComp& map) {
+void rebuildMesh(entt::entity ent, TileMapComp& map, entt::registry& reg) {
     // 2 triangles per tile * 3 vertices per triangle
     map.vertices.resize(static_cast<std::size_t>(map.width * map.height * 6));
 
@@ -54,6 +69,10 @@ void rebuildMesh(TileMapComp& map) {
 
             for (int i = 0; i < 6; ++i) quad[i].color = color;
         }
+    }
+
+    if (RenderableComp* comp = reg.try_get<RenderableComp>(ent)) {
+        comp->Bounds = {{0.f, 0.f}, {map.width * map.tileSize, map.height * map.tileSize}};
     }
 }
 
