@@ -41,7 +41,7 @@ void deserialize_entity(const YAML::Node& node, entt::registry& reg) {
     if (const YAML::Node& components = node["components"]) {
         for (const YAML::Node& comp : components) {
             std::string type_name = comp["id"].as<std::string>();
-            std::string yaml_str = comp["params"].as<std::string>();
+            std::string yaml_str = YAML::Dump(comp["params"]);
             ComponentSerializer::deserialize(type_name, yaml_str, entity, &reg);
         }
     }

@@ -119,7 +119,7 @@ int main() {
         dispatcher.trigger(updateEv);
     }
 
-    std::println("ser'd: {}", serialize_registry(registry).as<std::string>());
+    std::println("ser'd: {}", YAML::Dump(serialize_registry(registry)));
 
     return 0;
 }
