@@ -5,12 +5,15 @@
 #include "entt/entity/fwd.hpp"
 #include "physics/components.hpp"
 #include "physics/events.hpp"
+#include "serialization/serialization.hpp"
 #include "utility/utility.hpp"
 #include "world/components.hpp"
 #include "physics/system.hpp"
 
 void PhysicsSystem::init(entt::registry& reg) {
     subscribeGlobalEvent<UpdateEvent, &PhysicsSystem::update>(reg, this);
+
+    ComponentSerializer::register_component<PositionComp>("Position");
 }
 
 // Checks rect-tile overlap

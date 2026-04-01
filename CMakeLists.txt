@@ -60,11 +60,53 @@ else()
   FetchContent_MakeAvailable(SFML)
 endif()
 
+set(YAML_CPP_VERSION "0.9.0")
+
+# Fetch yaml-cpp
+message(STATUS "Detecting system yaml-cpp")
+find_package(yaml-cpp ${YAML_CPP_VERSION} QUIET)
+
+if (yaml-cpp_FOUND)
+  message(STATUS "yaml-cpp ${yaml-cpp_VERSION}")
+else()
+  message(STATUS "No yaml-cpp, fetching from Github...")
+  FetchContent_Declare(
+    yaml-cpp
+    GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+    GIT_TAG        yaml-cpp-${YAML_CPP_VERSION}
+    GIT_SHALLOW    1
+  )
+  FetchContent_MakeAvailable(yaml-cpp)
+endif()
+
+set(REFLECT_CPP_VERSION "0.24.0")
+
+# Fetch reflect-cpp
+message(STATUS "Detecting system reflect-cpp")
+find_package(reflectcpp ${REFLECT_CPP_VERSION} QUIET)
+
+if (reflectcpp_FOUND)
+  message(STATUS "reflectcpp ${reflect-cpp_VERSION}")
+else()
+  message(STATUS "No reflectcpp, fetching from Github...")
+  set(REFLECTCPP_YAML ON CACHE BOOL "" FORCE)
+  set(REFLECTCPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+  set(REFLECTCPP_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+  set(REFLECTCPP_USE_BUNDLED_DEPENDENCIES ON CACHE BOOL "" FORCE)
+  FetchContent_Declare(
+      reflectcpp
+      GIT_REPOSITORY https://github.com/getml/reflect-cpp.git
+      GIT_TAG        v${REFLECT_CPP_VERSION}
+      GIT_SHALLOW    1
+      GIT_SUBMODULES "" # don't get them
+  )
+  FetchContent_MakeAvailable(reflectcpp)
+endif()
+
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-# Add EnTT
-target_include_directories(${PROJECT_NAME} PRIVATE ${entt_SOURCE_DIR}/src)
+target_include_directories(${PROJECT_NAME} PRIVATE ${entt_SOURCE_DIR}/src ${boost-pfr_SOURCE_DIR}/include)
 
 target_link_libraries(${PROJECT_NAME}
   PRIVATE
@@ -72,6 +114,8 @@ target_link_libraries(${PROJECT_NAME}
     sfml-window
     sfml-system
     sfml-audio
+    yaml-cpp
+    reflectcpp
 )
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD

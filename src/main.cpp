@@ -4,6 +4,7 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Window/WindowEnums.hpp>
 #include <memory>
+#include <print>
 #include <queue>
 
 #include "core/events.hpp"
@@ -11,6 +12,7 @@
 #include "graphics/components.hpp"
 #include "input/components.hpp"
 #include "physics/components.hpp"
+#include "serialization/serialization.hpp"
 #include "utility/math.hpp"
 #include "world/components.hpp"
 
@@ -116,6 +118,8 @@ int main() {
         UpdateEvent updateEv(dt, &registry);
         dispatcher.trigger(updateEv);
     }
+
+    std::println("ser'd: {}", serialize_registry(registry).as<std::string>());
 
     return 0;
 }
