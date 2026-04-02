@@ -1,12 +1,16 @@
+#include <entt/entt.hpp>
+
 #include "core/events.hpp"
-#include "entt/entity/fwd.hpp"
 #include "graphics/components.hpp"
 #include "graphics/events.hpp"
+#include "serialization/serialization.hpp"
 #include "world/components.hpp"
 #include "world/systems.hpp"
 
 void WorldSystem::init(entt::registry& reg) {
     subscribeLocalEvent<TileMapComp, RenderEvent, &TileMapComp::OnRender>(reg);
+
+    ComponentSerializer::register_component<TileMapComp>("TileMap");
 }
 
 void TileMapComp::OnRender(RenderEvent& ev) {

@@ -2,6 +2,7 @@
 #include <memory>
 #include <entt/entt.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
+#include <queue>
 
 struct SystemBase {
     virtual ~SystemBase() = default;
@@ -16,6 +17,19 @@ struct SystemBase {
 inline std::vector<std::unique_ptr<SystemBase>>& get_systems() {
     static std::vector<std::unique_ptr<SystemBase>> systems;
     return systems;
+}
+
+inline void init_systems(entt::registry& registry) {
+    // Initialise systems
+    std::priority_queue<std::pair<int, SystemBase*>> init_queue;
+    for (auto& sys_ptr : get_systems()) {
+        init_queue.push({sys_ptr->initPriority(), sys_ptr.get()});
+    }
+    while (init_queue.size() != 0) {
+        auto& sys = init_queue.top().second;
+        sys->init(registry);
+        init_queue.pop();
+    }
 }
 
 template<typename TSys>

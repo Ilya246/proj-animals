@@ -14,6 +14,7 @@ void PhysicsSystem::init(entt::registry& reg) {
     subscribeGlobalEvent<UpdateEvent, &PhysicsSystem::update>(reg, this);
 
     ComponentSerializer::register_component<PositionComp>("Position");
+    ComponentSerializer::register_component<PhysicsComp>("Physics");
 }
 
 // Checks rect-tile overlap

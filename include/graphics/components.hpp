@@ -22,15 +22,15 @@ struct RenderableComp {
     sf::FloatRect Bounds{sf::Vector2f(-1.f, -1.f), sf::Vector2f(2.f, 2.f)};
 };
 
-struct SpriteComp {
-    sf::Sprite sprite;
-
-    void OnRender(RenderEvent&);
-};
-
 // Renders entities with the same world parent in bounds. 
 struct CameraComp {
     float scale;
     int32_t zLevel; // Camera's own z-level. Takes priority over renderable z-level.
     sf::View view = {};
+};
+
+struct SpriteComp {
+    sf::Sprite sprite;
+
+    void OnRender(RenderEvent&);
 };

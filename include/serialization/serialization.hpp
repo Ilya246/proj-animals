@@ -5,80 +5,77 @@
 #include <unordered_map>
 #include <functional>
 #include <string>
-#include <iostream>
 #include <cassert>
 
 #include "serialization_entt.hpp"
 #include "serialization_sfml.hpp"
 
-// ============================================================================
-// Component Serialization System
-// ============================================================================
+template<typename T>
+struct PostDeserialize {
+    // static void exec(entt::entity e, T& comp, entt::registry* r);
+};
 
-class ComponentSerializer {
-public:
-    using SerializeFunc = std::function<std::string(entt::registry&, entt::entity)>;
-    using DeserializeFunc = std::function<void(const std::string&, entt::entity, entt::registry*)>;
-    
+template<typename T>
+concept HasPostDeserializeExec = requires(entt::entity e, T& comp, entt::registry* r) {
+    PostDeserialize<T>::exec(e, comp, r);
+};
+
+struct ComponentSerializer {
     template<typename T>
-    static bool register_component(const std::string& name) {
-        auto& registry = get_registry();
-        
-        registry.deserialize[name] = [](const std::string& yaml_str, entt::entity e, entt::registry* r) {
-            auto result = rfl::yaml::read<T>(yaml_str);
+    static void register_component(const std::string& name) {
+        Registry& registry = get_registry();
+
+        registry.deserialize[name] = [](const YAML::Node& node, entt::entity e, entt::registry* r) {
+            auto result = rfl::yaml::read<T>(node);
             if (result) {
                 r->emplace<T>(e, std::move(*result));
+                if constexpr (HasPostDeserializeExec<T>) {
+                    PostDeserialize<T>::exec(e, r->get<T>(e), r);
+                }
             }
         };
-        
-        registry.serialize[name] = [](entt::registry& r, entt::entity e) -> std::string {
-            if (auto* comp = r.try_get<T>(e)) {
-                return rfl::yaml::write(*comp);
+
+        registry.serialize[name] = [](entt::registry& r, entt::entity e) -> std::optional<YAML::Node> {
+            if (T* comp = r.try_get<T>(e)) {
+                return YAML::Load(rfl::yaml::write(*comp));
             }
-            return "";
+            return {};
         };
-        
+
         registry.type_names.push_back(name);
-        std::cout << "Registered component type: " << name << std::endl;
-        return true;
     }
-    
-    static void deserialize(const std::string& name, const std::string& yaml_str, 
+
+    static void deserialize(const std::string& name, const YAML::Node& yaml_str,
                            entt::entity e, entt::registry* r) {
-        auto& registry = get_registry();
+        Registry& registry = get_registry();
         if (auto it = registry.deserialize.find(name); it != registry.deserialize.end()) {
             it->second(yaml_str, e, r);
         }
     }
-    
-    static std::string serialize(const std::string& name, entt::registry& r, entt::entity e) {
-        auto& registry = get_registry();
+
+    static std::optional<YAML::Node> serialize(const std::string& name, entt::registry& r, entt::entity e) {
+        Registry& registry = get_registry();
         if (auto it = registry.serialize.find(name); it != registry.serialize.end()) {
             return it->second(r, e);
         }
-        return "";
+        return {};
     }
-    
+
     static const std::vector<std::string>& get_registered_types() {
         return get_registry().type_names;
     }
-    
-private:
+
     struct Registry {
-        std::unordered_map<std::string, DeserializeFunc> deserialize;
-        std::unordered_map<std::string, SerializeFunc> serialize;
+        std::unordered_map<std::string, std::function<void(const YAML::Node&, entt::entity, entt::registry*)>> deserialize;
+        std::unordered_map<std::string, std::function<std::optional<YAML::Node>(entt::registry&, entt::entity)>> serialize;
         std::vector<std::string> type_names;
     };
-    
+
     static Registry& get_registry() {
         static Registry registry;
         return registry;
     }
 };
-
-// ============================================================================
-// Entity Serialization Functions
-// ============================================================================
 
 YAML::Node serialize_entity(entt::registry& reg, entt::entity e);
 

@@ -5,12 +5,6 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-if (MSVC)
-    add_compile_options(/W4)
-else()
-    add_compile_options(-Wall -Wextra -Wpedantic)
-endif()
-add_compile_options(-g)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include(FetchContent)
@@ -117,6 +111,13 @@ target_link_libraries(${PROJECT_NAME}
     yaml-cpp
     reflectcpp
 )
+
+if (MSVC)
+    target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+else()
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+add_compile_options(-g)
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
   COMMENT "Copying resources to output directory"

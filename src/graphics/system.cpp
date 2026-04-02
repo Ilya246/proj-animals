@@ -1,20 +1,37 @@
-#include <SFML/Graphics/Rect.hpp>
-#include <SFML/Graphics/RenderWindow.hpp>
+#include <SFML/Graphics.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <entt/entt.hpp>
+#include <filesystem>
 #include <map>
 
 #include "core/events.hpp"
-#include "entt/entity/fwd.hpp"
 #include "graphics/components.hpp"
 #include "graphics/system.hpp"
 #include "graphics/events.hpp"
+#include "graphics/texture.hpp"
 #include "physics/components.hpp"
 #include "physics/system.hpp"
+#include "serialization/serialization.hpp"
 
 void DrawSystem::init(entt::registry& reg) {
     subscribeGlobalEvent<UpdateEvent, &DrawSystem::update>(reg, this);
     subscribeLocalEvent<SpriteComp, RenderEvent, &SpriteComp::OnRender>(reg);
+
+    // load textures
+    const std::filesystem::path textures_path("resources/textures");
+    for (const auto& tex_file : std::filesystem::directory_iterator(textures_path)) {
+        if (tex_file.is_regular_file()) {
+            auto name = tex_file.path().stem();
+            sf::Texture& file_texture = tex_map[name];
+            if (!file_texture.loadFromFile(tex_file))
+                tex_map.erase(name);
+            else
+                tex_name_map[&file_texture] = name;
+        }
+    }
+
+    ComponentSerializer::register_component<SpriteComp>("Sprite");
+    ComponentSerializer::register_component<RenderableComp>("Renderable");
 }
 
 void DrawSystem::update(const UpdateEvent& ev) {

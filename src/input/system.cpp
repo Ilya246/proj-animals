@@ -4,12 +4,15 @@
 #include "input/components.hpp"
 #include "physics/components.hpp"
 #include "physics/events.hpp"
+#include "serialization/serialization.hpp"
 #include "utility/utility.hpp"
 #include "input/system.hpp"
 
 void InputSystem::init(entt::registry& reg) {
     subscribeGlobalEvent<UpdateEvent, &InputSystem::update>(reg, this);
     subscribeLocalEvent<InputMovementComp, GetDragEvent, &InputMovementComp::OnGetDrag>(reg);
+
+    ComponentSerializer::register_component<InputMovementComp>("InputMovement");
 }
 
 void InputSystem::update(const UpdateEvent& ev) {
