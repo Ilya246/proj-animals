@@ -4,6 +4,7 @@
 #include <entt/entt.hpp>
 #include <SFML/Graphics.hpp>
 #include <SFML/Window/WindowEnums.hpp>
+#include <filesystem>
 #include <print>
 
 #include "core/events.hpp"
@@ -15,6 +16,7 @@
 #include "serialization/serialization.hpp"
 #include "utility/math.hpp"
 #include "world/components.hpp"
+#include "yaml-cpp/node/parse.h"
 
 void genWorld(entt::registry& registry);
 
@@ -34,7 +36,14 @@ int main() {
 
     init_systems(registry);
 
-    genWorld(registry);
+    // try load saved registry
+    if (std::filesystem::exists("save.yml")) {
+        YAML::Node saveNode = YAML::LoadFile("save.yml");
+        deserialize_registry(saveNode, registry);
+    } else {
+    // else generate
+        genWorld(registry);
+    }
 
     sf::Clock clock;
 
@@ -56,7 +65,9 @@ int main() {
         dispatcher.trigger(updateEv);
     }
 
-    std::println("{}", YAML::Dump(serialize_registry(registry)));
+    std::println("Writing save to save.yml...");
+    std::ofstream save_s("save.yml");
+    save_s << serialize_registry(registry);
 
     return 0;
 }

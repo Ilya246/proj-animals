@@ -31,6 +31,7 @@ void DrawSystem::init(entt::registry& reg) {
     }
 
     ComponentSerializer::register_component<SpriteComp>("Sprite");
+    ComponentSerializer::register_component<CameraComp>("Camera");
     ComponentSerializer::register_component<RenderableComp>("Renderable");
 }
 

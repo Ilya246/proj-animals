@@ -102,6 +102,11 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${entt_SOURCE_DIR}/src ${boost-pfr_SOURCE_DIR}/include)
 
+# disable warnings for reflectcpp
+if(DEFINED reflectcpp_SOURCE_DIR)
+    target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${reflectcpp_SOURCE_DIR}/include)
+endif()
+
 target_link_libraries(${PROJECT_NAME}
   PRIVATE
     sfml-graphics
