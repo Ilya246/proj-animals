@@ -11,6 +11,8 @@ include(FetchContent)
 
 set(ENTT_VERSION "3.16.0")
 
+add_compile_options(-g -O0)
+
 # Try to find EnTT on the system
 message(STATUS "Detecting system EnTT")
 find_package(EnTT ${ENTT_VERSION} QUIET)
@@ -122,7 +124,7 @@ if (MSVC)
 else()
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
 endif()
-add_compile_options(-g)
+add_compile_options(-g -O0)
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
   COMMENT "Copying resources to output directory"

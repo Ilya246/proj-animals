@@ -10,6 +10,10 @@
 #include "serialization_entt.hpp"
 #include "serialization_sfml.hpp"
 
+struct NonSerializableComp {
+    bool dummy; // entt can't have empty comps
+};
+
 template<typename T>
 struct PostDeserialize {
     // static void exec(entt::entity e, T& comp, entt::registry* r);
@@ -22,7 +26,7 @@ concept HasPostDeserializeExec = requires(entt::entity e, T& comp, entt::registr
 
 struct ComponentSerializer {
     template<typename T>
-    static void register_component(const std::string& name) {
+    static bool register_component(const std::string& name) {
         Registry& registry = get_registry();
 
         registry.deserialize[name] = [](const YAML::Node& node, entt::entity e, entt::registry* r) {
@@ -43,6 +47,7 @@ struct ComponentSerializer {
         };
 
         registry.type_names.push_back(name);
+        return true;
     }
 
     static void deserialize(const std::string& name, const YAML::Node& yaml_str,
@@ -76,6 +81,9 @@ struct ComponentSerializer {
         return registry;
     }
 };
+
+#define REGISTER_SERIALIZABLE(Type, Name) \
+    static inline const bool _##Type##_ser = ComponentSerializer::register_component<Type>(#Name);
 
 YAML::Node serialize_entity(entt::registry& reg, entt::entity e);
 

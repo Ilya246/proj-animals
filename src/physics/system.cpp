@@ -5,16 +5,12 @@
 #include "entt/entity/fwd.hpp"
 #include "physics/components.hpp"
 #include "physics/events.hpp"
-#include "serialization/serialization.hpp"
 #include "utility/utility.hpp"
 #include "world/components.hpp"
 #include "physics/system.hpp"
 
 void PhysicsSystem::init(entt::registry& reg) {
-    subscribeGlobalEvent<UpdateEvent, &PhysicsSystem::update>(reg, this);
-
-    ComponentSerializer::register_component<PositionComp>("Position");
-    ComponentSerializer::register_component<PhysicsComp>("Physics");
+    subscribe_global_event<UpdateEvent, &PhysicsSystem::update>(reg, this);
 }
 
 // Checks rect-tile overlap
@@ -85,13 +81,14 @@ void PhysicsSystem::update(const UpdateEvent& ev) {
         if (TileMapComp* mapComp = reg.try_get<TileMapComp>(world)) {
             if (phys.velocity != zeroVec) {
                 // Check our post-move bounds
-                sf::FloatRect desiredWorldRect = phys.bounds;
+                sf::FloatRect bounds = get_optional_bounds(entity, phys, reg);
+                sf::FloatRect desiredWorldRect = bounds;
                 desiredWorldRect.position += desiredWorldPos;
 
                 // Will we be colliding?
                 if (checkTileCollision(desiredWorldRect, *mapComp)) {
                     sf::Vector2f currentWorldPos = Physics::worldPos(entity, reg);
-                    sf::Vector2f resolvedWorldPos = resolveCollision(currentWorldPos, desiredWorldPos, phys.bounds, *mapComp);
+                    sf::Vector2f resolvedWorldPos = resolveCollision(currentWorldPos, desiredWorldPos, bounds, *mapComp);
                     desiredPos = pos.position + resolvedWorldPos - currentWorldPos;
 
                     if (ev.dt != 0.f) {
@@ -106,7 +103,7 @@ void PhysicsSystem::update(const UpdateEvent& ev) {
         // Update velocity, apply drag
         if (phys.velocity != zeroVec) {
             float drag = phys.drag;
-            raiseLocalEvent(reg, entity, GetDragEvent(&drag));
+            raise_local_event(reg, entity, GetDragEvent(&drag));
             float dragBy = drag * ev.dt;
             if (phys.velocity.lengthSquared() <= dragBy * dragBy)
                 phys.velocity = zeroVec;

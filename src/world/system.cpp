@@ -1,16 +1,13 @@
 #include <entt/entt.hpp>
 
 #include "core/events.hpp"
-#include "graphics/components.hpp"
 #include "graphics/events.hpp"
-#include "serialization/serialization.hpp"
+#include "physics/components.hpp"
 #include "world/components.hpp"
 #include "world/systems.hpp"
 
 void WorldSystem::init(entt::registry& reg) {
-    subscribeLocalEvent<TileMapComp, RenderEvent, &TileMapComp::OnRender>(reg);
-
-    ComponentSerializer::register_component<TileMapComp>("TileMap");
+    subscribe_local_event<TileMapComp, RenderEvent, &TileMapComp::OnRender>(reg);
 }
 
 void TileMapComp::OnRender(RenderEvent& ev) {
@@ -75,8 +72,8 @@ void rebuildMesh(entt::entity ent, TileMapComp& map, entt::registry& reg) {
         }
     }
 
-    if (RenderableComp* comp = reg.try_get<RenderableComp>(ent)) {
-        comp->Bounds = {{0.f, 0.f}, {map.width * map.tileSize, map.height * map.tileSize}};
+    if (BoundsComp* comp = reg.try_get<BoundsComp>(ent)) {
+        comp->bounds = {{0.f, 0.f}, {map.width * map.tileSize, map.height * map.tileSize}};
     }
 }
 

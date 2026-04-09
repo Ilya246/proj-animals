@@ -11,11 +11,10 @@
 #include "graphics/texture.hpp"
 #include "physics/components.hpp"
 #include "physics/system.hpp"
-#include "serialization/serialization.hpp"
 
 void DrawSystem::init(entt::registry& reg) {
-    subscribeGlobalEvent<UpdateEvent, &DrawSystem::update>(reg, this);
-    subscribeLocalEvent<SpriteComp, RenderEvent, &SpriteComp::OnRender>(reg);
+    subscribe_global_event<UpdateEvent, &DrawSystem::update>(reg, this);
+    subscribe_local_event<SpriteComp, RenderEvent, &SpriteComp::OnRender>(reg);
 
     // load textures
     const std::filesystem::path textures_path("resources/textures");
@@ -29,10 +28,6 @@ void DrawSystem::init(entt::registry& reg) {
                 tex_name_map[&file_texture] = name;
         }
     }
-
-    ComponentSerializer::register_component<SpriteComp>("Sprite");
-    ComponentSerializer::register_component<CameraComp>("Camera");
-    ComponentSerializer::register_component<RenderableComp>("Renderable");
 }
 
 void DrawSystem::update(const UpdateEvent& ev) {
@@ -78,7 +73,8 @@ void DrawSystem::update(const UpdateEvent& ev) {
 
         for (auto& [entity, entPos, spr] : renderables[worldEnt]) {
             // Check if the entity's draw-bounds overlap with the camera's vision bounds
-            sf::FloatRect drawBounds {camBounds.position - spr.Bounds.size + spr.Bounds.position, camBounds.size + spr.Bounds.size};
+            sf::FloatRect sprBounds = get_optional_bounds(entity, spr, reg);
+            sf::FloatRect drawBounds {camBounds.position - sprBounds.size + sprBounds.position, camBounds.size + sprBounds.size};
             if (drawBounds.contains(entPos))
                 drawables.back().second.second.push_back({spr.zLevel, entity});
         }
@@ -92,7 +88,7 @@ void DrawSystem::update(const UpdateEvent& ev) {
         window.setView(reg.get<CameraComp>(cam).view);
 
         for (auto [zLevel, entity] : draw)
-            raiseLocalEvent(reg, entity, RenderEvent(entity, &reg, &window));
+            raise_local_event(reg, entity, RenderEvent(entity, &reg, &window));
     }
     window.display();
 }

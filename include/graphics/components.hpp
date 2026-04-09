@@ -5,6 +5,7 @@
 #include <SFML/System/Vector2.hpp>
 
 #include "graphics/events.hpp"
+#include "serialization/serialization.hpp"
 
 enum ZLevel : int32_t {
     // First 26 bits - offset
@@ -19,18 +20,24 @@ enum ZLevel : int32_t {
 struct RenderableComp {
     int32_t zLevel = z_entity;
     // Bounds for culling
-    sf::FloatRect Bounds{sf::Vector2f(-1.f, -1.f), sf::Vector2f(2.f, 2.f)};
+    std::optional<sf::FloatRect> bounds{};
+
+    REGISTER_SERIALIZABLE(RenderableComp, Renderable)
 };
 
 // Renders entities with the same world parent in bounds. 
 struct CameraComp {
     float scale;
     int32_t zLevel; // Camera's own z-level. Takes priority over renderable z-level.
-    sf::View view = {};
+    sf::View view{};
+
+    REGISTER_SERIALIZABLE(CameraComp, Camera)
 };
 
 struct SpriteComp {
     sf::Sprite sprite;
 
     void OnRender(RenderEvent&);
+
+    REGISTER_SERIALIZABLE(SpriteComp, Sprite)
 };

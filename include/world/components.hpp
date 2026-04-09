@@ -26,6 +26,8 @@ struct TileMapComp {
     sf::VertexArray vertices{sf::PrimitiveType::Triangles};
 
     void OnRender(RenderEvent&);
+
+    REGISTER_SERIALIZABLE(TileMapComp, TileMap)
 };
 
 namespace MapUtil {

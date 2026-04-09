@@ -12,8 +12,10 @@
 #include "graphics/components.hpp"
 #include "graphics/texture.hpp"
 #include "input/components.hpp"
+#include "input/events.hpp"
 #include "physics/components.hpp"
 #include "serialization/serialization.hpp"
+#include "ui/components.hpp"
 #include "utility/math.hpp"
 #include "world/components.hpp"
 #include "yaml-cpp/node/parse.h"
@@ -58,6 +60,11 @@ int main() {
                 window.close();
                 break;
             }
+            if (auto* mouseEv = event->getIf<sf::Event::MouseButtonPressed>()) {
+                ClickEvent clickEv(mouseEv->position, mouseEv->button, &registry);
+                dispatcher.trigger(clickEv);
+                continue;
+            }
         }
 
         // Dispatch update event
@@ -78,6 +85,7 @@ void genWorld(entt::registry& registry) {
     registry.emplace<PositionComp>(world, sf::Vector2f(0.f, 0.f), world);
     TileMapComp& mapComp = registry.emplace<TileMapComp>(world, 64, 64, 32.f, &tex_map["tileset"]);
     registry.emplace<RenderableComp>(world, z_world);
+    registry.emplace<BoundsComp>(world);
     // Add some random walls
     mapComp.grid.resize(mapComp.height * mapComp.width);
     for (int i = 0; i < 200; ++i) {
@@ -91,7 +99,8 @@ void genWorld(entt::registry& registry) {
     // Create a player entity
     const auto player = registry.create();
     registry.emplace<PositionComp>(player, sf::Vector2f(64.f, 64.f), world);
-    registry.emplace<PhysicsComp>(player, sf::Vector2f(0.f, 0.f), 1600.f, sf::FloatRect{{-16.f, -16.f}, {32.f, 32.f}});
+    registry.emplace<PhysicsComp>(player, sf::Vector2f(0.f, 0.f), 1600.f);
+    registry.emplace<BoundsComp>(player, sf::FloatRect{{-16.f, -16.f}, {32.f, 32.f}});
     registry.emplace<InputMovementComp>(player, 600.f, 3000.f);
 
     sf::Sprite playerSprite(tex_map["mob"]);
@@ -111,7 +120,10 @@ void genWorld(entt::registry& registry) {
         sf::Vector2f pos(math::randf(50.f, 750.f), math::randf(50.f, 550.f));
         sf::Vector2f vel(math::randf(-200.f, 200.f), math::randf(-200.f, 200.f));
         registry.emplace<PositionComp>(ball, pos, world);
-        registry.emplace<PhysicsComp>(ball, vel, 10.f, sf::FloatRect{{-8.f, -8.f}, {16.f, 16.f}});
+        registry.emplace<PhysicsComp>(ball, vel, 10.f);
+        registry.emplace<BoundsComp>(ball, sf::FloatRect{{-8.f, -8.f}, {16.f, 16.f}});
+        registry.emplace<ClickListenerComp>(ball);
+        registry.emplace<ButtonComp>(ball, [](ClickEvent&) { std::println("test"); });
 
         sf::Sprite ballSprite(tex_map["mob"]);
         ballSprite.setColor(sf::Color::Red);        // tint red

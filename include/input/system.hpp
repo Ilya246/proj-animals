@@ -1,6 +1,7 @@
 #pragma once
 #include "core/events.hpp"
 #include "core/system.hpp"
+#include "input/events.hpp"
 
 struct InputSystem : System<InputSystem> {
     private:
@@ -8,4 +9,5 @@ struct InputSystem : System<InputSystem> {
         virtual int initPriority() override { return 64; };
 
         void update(const UpdateEvent&);
+        void receiveClick(const ClickEvent&);
 };

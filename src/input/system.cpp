@@ -1,18 +1,19 @@
 #include <entt/entt.hpp>
 
 #include "core/events.hpp"
+#include "graphics/components.hpp"
 #include "input/components.hpp"
+#include "input/events.hpp"
 #include "physics/components.hpp"
 #include "physics/events.hpp"
-#include "serialization/serialization.hpp"
+#include "physics/system.hpp"
 #include "utility/utility.hpp"
 #include "input/system.hpp"
 
 void InputSystem::init(entt::registry& reg) {
-    subscribeGlobalEvent<UpdateEvent, &InputSystem::update>(reg, this);
-    subscribeLocalEvent<InputMovementComp, GetDragEvent, &InputMovementComp::OnGetDrag>(reg);
-
-    ComponentSerializer::register_component<InputMovementComp>("InputMovement");
+    subscribe_global_event<UpdateEvent, &InputSystem::update>(reg, this);
+    subscribe_global_event<ClickEvent, &InputSystem::receiveClick>(reg, this);
+    subscribe_local_event<InputMovementComp, GetDragEvent, &InputMovementComp::OnGetDrag>(reg);
 }
 
 void InputSystem::update(const UpdateEvent& ev) {
@@ -40,6 +41,36 @@ void InputSystem::update(const UpdateEvent& ev) {
         sf::Vector2f deltaVel = targetVel - playerVelComp.velocity;
         if (deltaVel != zeroVec)
             playerVelComp.velocity += deltaVel.normalized() * mover.accel * ev.dt;
+    }
+}
+
+void InputSystem::receiveClick(const ClickEvent& ev) {
+    std::map<entt::entity, sf::Vector2f> clickMap;
+    auto camView = ev.registry->view<CameraComp>();
+    for (auto [entity, cam] : camView.each()) {
+        auto [worldEnt, worldPos] = Physics::getWorldPos(entity, *ev.registry);
+        sf::Vector2f camOrigin = cam.view.getCenter() - cam.view.getSize() * 0.5f;
+        sf::Vector2f windowSize = (sf::Vector2f)ev.registry->ctx().get<sf::RenderWindow&>().getSize();
+        sf::Vector2f viewSize = cam.view.getSize();
+        float scaleX = viewSize.x / windowSize.x;
+        float scaleY = viewSize.y / windowSize.y;
+        sf::Vector2f relCoords = sf::Vector2f{ev.pixelCoords.x * scaleX, ev.pixelCoords.y * scaleY};
+        sf::Vector2f coords = camOrigin + relCoords;
+        coords.y *= -1.f; // convert to world coordinates
+        clickMap[worldEnt] = coords;
+    }
+
+    auto clickableView = ev.registry->view<ClickListenerComp, PositionComp>();
+    for (auto [entity, clickable, position] : clickableView.each()) {
+        auto [worldEnt, worldPos] = Physics::getWorldPos(entity, *ev.registry);
+        if (!clickMap.contains(worldEnt))
+            continue;
+        sf::Vector2f clickPos = clickMap.at(worldEnt);
+
+        sf::FloatRect bounds = get_optional_bounds(entity, clickable, *ev.registry);
+        bounds.position += position.position;
+        if (bounds.contains(clickPos))
+            raise_local_event(*ev.registry, entity, ev);
     }
 }
 

@@ -4,6 +4,9 @@
 #include "serialization/serialization.hpp"
 
 YAML::Node serialize_entity(entt::registry& reg, entt::entity e) {
+    if (auto _ = reg.try_get<NonSerializableComp>(e))
+        return {};
+
     YAML::Node node;
     node["id"] = static_cast<uint32_t>(e);
 

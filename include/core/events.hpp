@@ -29,9 +29,9 @@ inline void __ensureUnsubscribe(entt::registry& reg, entt::entity ent) {
 }
 
 // Subscribe specified component to an event.
-// When raiseLocalEvent is raised for that event on our entity, run the function.
+// When raise_local_event is raised for that event on our entity, run the function.
 template<typename TComp, typename TEv, auto Fun>
-inline void subscribeLocalEvent(entt::registry& reg) {
+inline void subscribe_local_event(entt::registry& reg) {
     reg.on_construct<TComp>().template connect<&__ensureSubscribe<TComp, TEv, Fun>>();
     reg.on_destroy<TComp>().template connect<&__ensureUnsubscribe<TComp, TEv, Fun>>();
 }
@@ -39,19 +39,19 @@ inline void subscribeLocalEvent(entt::registry& reg) {
 // Dispatch an event to an entity's components.
 // Components subscribing to the event will run code.
 template<typename TEv>
-inline void raiseLocalEvent(entt::registry& reg, entt::entity& ent, TEv&& ev) {
+inline void raise_local_event(entt::registry& reg, entt::entity& ent, TEv&& ev) {
     if (EventDispatchComp* dispatch = reg.try_get<EventDispatchComp>(ent))
         dispatch->dispatcher.trigger(ev);
 }
 
 // Make some function happen when an event is triggered.
 template<typename TEv, auto Fun>
-inline void subscribeGlobalEvent(entt::registry& reg) {
+inline void subscribe_global_event(entt::registry& reg) {
     getGlobalDispatcher(reg).sink<TEv>().template connect<Fun>();
 }
 
 // Make some function on an object happen when an event is triggered.
 template<typename TEv, auto Fun, typename TSub>
-inline void subscribeGlobalEvent(entt::registry& reg, TSub* instance) {
+inline void subscribe_global_event(entt::registry& reg, TSub* instance) {
     getGlobalDispatcher(reg).sink<TEv>().template connect<Fun>(instance);
 }
