@@ -1,3 +1,4 @@
+#pragma once
 #include <rfl.hpp>
 #include <entt/entt.hpp>
 

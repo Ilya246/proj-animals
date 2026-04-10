@@ -4,5 +4,5 @@
 struct UISystem : System<UISystem> {
     private:
         virtual void init(entt::registry&) override;
-        virtual int initPriority() override { return 0; };
+        virtual int initPriority() override { return -16; };
 };

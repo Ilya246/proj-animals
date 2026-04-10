@@ -1,7 +1,11 @@
+#pragma once
+#include <SFML/Graphics/Color.hpp>
+#include <cstdint>
 #include <rfl.hpp>
 #include <SFML/Graphics.hpp>
 #include <SFML/System.hpp>
 #include "graphics/texture.hpp"
+#include "ui/font.hpp"
 
 struct SfmlVector2fSerializationHelper {
     float x;
@@ -134,4 +138,46 @@ template <class ReaderType, class WriterType, class ProcessorsType>
 struct Parser<ReaderType, WriterType, sf::View, ProcessorsType>
     : public CustomParser<ReaderType, WriterType, ProcessorsType, 
                           sf::View, SfmlViewHelper> {};
+}
+
+struct SfmlTextHelper {
+    std::string font;
+    std::string text;
+    unsigned int size;
+    float letterSpacing;
+    float lineSpacing;
+    uint32_t style;
+    sf::Color fillColor;
+    sf::Color outlineColor;
+    float outlineThickness;
+
+    static SfmlTextHelper from_class(const sf::Text& text) noexcept {
+        return {font_name_map[&text.getFont()],
+                text.getString(),
+                text.getCharacterSize(),
+                text.getLetterSpacing(),
+                text.getLineSpacing(),
+                text.getStyle(),
+                text.getFillColor(),
+                text.getOutlineColor(),
+                text.getOutlineThickness()};
+    }
+
+    sf::Text to_class() const noexcept {
+        sf::Text ret(font_map[font], text, size);
+        ret.setLetterSpacing(letterSpacing);
+        ret.setLineSpacing(lineSpacing);
+        ret.setStyle(style);
+        ret.setFillColor(fillColor);
+        ret.setOutlineColor(outlineColor);
+        ret.setOutlineThickness(outlineThickness);
+        return ret;
+    }
+};
+
+namespace rfl::parsing {
+template <class ReaderType, class WriterType, class ProcessorsType>
+struct Parser<ReaderType, WriterType, sf::Text, ProcessorsType>
+    : public CustomParser<ReaderType, WriterType, ProcessorsType, 
+                          sf::Text, SfmlTextHelper> {};
 }

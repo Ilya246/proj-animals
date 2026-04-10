@@ -131,6 +131,7 @@ void genWorld(entt::registry& registry) {
         // Scale down a bit so balls are smaller
         ballSprite.setScale({0.5f, 0.5f});
         registry.emplace<SpriteComp>(ball, std::move(ballSprite));
+        registry.emplace<TextComp>(ball, sf::Text(font_map["hack"], "test", 15));
         registry.emplace<RenderableComp>(ball, z_entity);
     }
 }
