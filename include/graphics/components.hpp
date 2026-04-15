@@ -25,6 +25,13 @@ struct RenderableComp {
     REGISTER_SERIALIZABLE(RenderableComp, Renderable)
 };
 
+// Applies stencil to us during draw
+struct StencilDrawComp {
+    std::optional<sf::FloatRect> bounds{};
+
+    REGISTER_SERIALIZABLE(StencilDrawComp, UIStencil)
+};
+
 // Renders entities with the same world parent in bounds. 
 struct CameraComp {
     float scale;

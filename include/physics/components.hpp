@@ -25,6 +25,9 @@ struct PhysicsComp {
 struct BoundsComp {
     sf::FloatRect bounds{{-16.f, -16.f}, {32.f, 32.f}};
 
+    // Resize while firing BoundsResizeEvent
+    void resize(const sf::FloatRect& newBounds, entt::entity e, entt::registry& reg);
+
     REGISTER_SERIALIZABLE(BoundsComp, Bounds)
 };
 

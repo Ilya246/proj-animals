@@ -113,6 +113,11 @@ void PhysicsSystem::update(const UpdateEvent& ev) {
     }
 }
 
+void BoundsComp::resize(const sf::FloatRect& newBounds, entt::entity e, entt::registry& reg) {
+    bounds = newBounds;
+    raise_local_event(reg, e, BoundsResizeEvent{&reg, e, newBounds});
+}
+
 namespace Physics {
 
 entt::entity getWorld(const entt::entity& ent, const entt::registry& reg) {

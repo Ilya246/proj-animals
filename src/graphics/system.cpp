@@ -1,4 +1,5 @@
 #include <SFML/Graphics.hpp>
+#include <SFML/Graphics/Rect.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <entt/entt.hpp>
 #include <filesystem>
@@ -74,7 +75,7 @@ void DrawSystem::update(const UpdateEvent& ev) {
         for (auto& [entity, entPos, spr] : renderables[worldEnt]) {
             // Check if the entity's draw-bounds overlap with the camera's vision bounds
             sf::FloatRect sprBounds = get_optional_bounds(entity, spr, reg);
-            sf::FloatRect drawBounds {camBounds.position - sprBounds.size + sprBounds.position, camBounds.size + sprBounds.size};
+            sf::FloatRect drawBounds {camBounds.position - sprBounds.size - sprBounds.position, camBounds.size + sprBounds.size};
             if (drawBounds.contains(entPos))
                 drawables.back().second.second.push_back({spr.zLevel, entity});
         }
@@ -82,13 +83,60 @@ void DrawSystem::update(const UpdateEvent& ev) {
 
     std::sort(drawables.begin(), drawables.end());
     for (auto& [camZ, camDraw] : drawables) {
-        auto cam = camDraw.first;
+        entt::entity cam = camDraw.first;
         auto draw = camDraw.second;
         std::sort(draw.begin(), draw.end());
-        window.setView(reg.get<CameraComp>(cam).view);
+        sf::View& view = reg.get<CameraComp>(cam).view;
+        window.setView(view);
 
-        for (auto [zLevel, entity] : draw)
-            raise_local_event(reg, entity, RenderEvent(entity, &reg, &window));
+        for (auto [zLevel, entity] : draw) {
+            bool set_scissor = false;
+            if (auto* stencil = reg.try_get<StencilDrawComp>(entity)) {
+                sf::Vector2f pos = Physics::worldPos(entity, reg);
+                sf::FloatRect bounds = get_optional_bounds(entity, *stencil, reg);
+                
+                sf::Vector2f viewSize = view.getSize();
+                sf::Vector2f viewTL = view.getCenter() - viewSize * 0.5f;
+
+                float worldTop = pos.y + bounds.position.y + bounds.size.y;
+                float worldLeft = pos.x + bounds.position.x;
+                
+                // Draw coordinate equivalent
+                sf::Vector2f drawTL = {worldLeft, -worldTop};
+
+                // The Scissor Rect is defined purely as a viewport ratio
+                sf::FloatRect scissorRect;
+                scissorRect.position.x = (drawTL.x - viewTL.x) / viewSize.x;
+                scissorRect.position.y = (drawTL.y - viewTL.y) / viewSize.y;
+                scissorRect.size.x = bounds.size.x / viewSize.x;
+                scissorRect.size.y = bounds.size.y / viewSize.y;
+
+                // Prevent SFML assert
+                if (scissorRect.position.x < 0.f) {
+                    scissorRect.size.x += scissorRect.position.x;
+                    scissorRect.position.x = 0.f;
+                }
+                if (scissorRect.position.y < 0.f) {
+                    scissorRect.size.y += scissorRect.position.y;
+                    scissorRect.position.y = 0.f;
+                }
+                if (scissorRect.position.x + scissorRect.size.x > 1.f)
+                    scissorRect.size.x = 1.f - scissorRect.position.x;
+                if (scissorRect.position.y + scissorRect.size.y > 1.f)
+                    scissorRect.size.y = 1.f - scissorRect.position.y;
+
+                if (scissorRect.size.x > 0.f && scissorRect.size.y > 0.f) {
+                    view.setScissor(scissorRect);
+                    set_scissor = true;
+                } else {
+                    view.setScissor(sf::FloatRect{{0.f, 0.f}, {0.f, 0.f}});
+                    set_scissor = true;
+                }
+            }
+            raise_local_event(reg, entity, RenderEvent{entity, &reg, &window});
+            if (set_scissor)
+                view.setScissor(sf::FloatRect{{0.f, 0.f}, {1.f, 1.f}}); // Clean up mask
+        }
     }
     window.display();
 }

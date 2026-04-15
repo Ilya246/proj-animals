@@ -8,6 +8,12 @@ struct UpdateEvent {
     entt::registry* registry;
 };
 
+struct ScreenResizeEvent {
+    unsigned int width;
+    unsigned int height;
+    entt::registry* registry;
+};
+
 // Helper method to get the event dispatcher
 entt::dispatcher& getGlobalDispatcher(entt::registry&);
 
