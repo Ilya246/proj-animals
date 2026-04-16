@@ -5,8 +5,8 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Window/WindowEnums.hpp>
 #include <filesystem>
-#include <print>
-
+//#include <print>
+#include<iostream>
 #include "core/components.hpp"
 #include "core/events.hpp"
 #include "core/system.hpp"
@@ -80,7 +80,8 @@ int main() {
         dispatcher.trigger(updateEv);
     }
 
-    std::println("Writing save to save.yml...");
+    //std::println("Writing save to save.yml...");
+    std::cout<<"Writing save to save.yml..."<<std::endl;
     std::ofstream save_s("save.yml");
     save_s << serialize_registry(registry);
 
@@ -131,7 +132,10 @@ void genWorld(entt::registry& registry) {
         registry.emplace<PhysicsComp>(ball, vel, 10.f);
         registry.emplace<BoundsComp>(ball, sf::FloatRect{{-8.f, -8.f}, {16.f, 16.f}});
         registry.emplace<ClickListenerComp>(ball);
-        registry.emplace<ButtonComp>(ball, [](ClickEvent&) { std::println("test"); });
+        registry.emplace<ButtonComp>(ball, [](ClickEvent&) { 
+            //std::println("test"); 
+            std::cout<<"test"<<std::endl;
+        });
 
         sf::Sprite ballSprite(tex_map["mob"]);
         ballSprite.setColor(sf::Color::Red);        // tint red

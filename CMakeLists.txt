@@ -12,7 +12,9 @@ include(FetchContent)
 set(ENTT_VERSION "3.16.0")
 
 add_compile_options(-g -O0)
-
+if (MINGW)
+    add_compile_options(-Wa,-mbig-obj)
+endif()
 # Try to find EnTT on the system
 message(STATUS "Detecting system EnTT")
 find_package(EnTT ${ENTT_VERSION} QUIET)

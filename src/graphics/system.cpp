@@ -22,11 +22,11 @@ void DrawSystem::init(entt::registry& reg) {
     for (const auto& tex_file : std::filesystem::directory_iterator(textures_path)) {
         if (tex_file.is_regular_file()) {
             auto name = tex_file.path().stem();
-            sf::Texture& file_texture = tex_map[name];
+            sf::Texture& file_texture = tex_map[name.string()];
             if (!file_texture.loadFromFile(tex_file))
-                tex_map.erase(name);
+                tex_map.erase(name.string());
             else
-                tex_name_map[&file_texture] = name;
+                tex_name_map[&file_texture] = name.string();
         }
     }
 }

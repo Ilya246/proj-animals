@@ -30,11 +30,11 @@ void UISystem::init(entt::registry& reg) {
     for (const auto& font_file : std::filesystem::directory_iterator(fonts_path)) {
         if (font_file.is_regular_file()) {
             auto name = font_file.path().stem();
-            sf::Font& file_font = font_map[name];
+            sf::Font& file_font = font_map[name.string()];
             if (!file_font.openFromFile(font_file))
-                font_map.erase(name);
+                font_map.erase(name.string());
             else
-                font_name_map[&file_font] = name;
+                font_name_map[&file_font] = name.string();
         }
     }
 }
