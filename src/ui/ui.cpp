@@ -29,7 +29,7 @@ void UISystem::init(entt::registry& reg) {
     const std::filesystem::path fonts_path("resources/fonts");
     for (const auto& font_file : std::filesystem::directory_iterator(fonts_path)) {
         if (font_file.is_regular_file()) {
-            auto name = font_file.path().stem();
+            auto name = font_file.path().stem().string();
             sf::Font& file_font = font_map[name];
             if (!file_font.openFromFile(font_file))
                 font_map.erase(name);
@@ -165,7 +165,7 @@ void UIAnchorComp::OnAllocate(UISizeAllocatedEvent& ev) {
 void UIRectComp::OnRender(RenderEvent& ev) {
     BoundsComp& bounds = ev.reg->get<BoundsComp>(ev.ent);
 
-    sf::Vector2f worldPos = Physics::worldPos(ev.ent, *ev.reg);
+    sf::Vector2f worldPos = Physics::getWorldPos(ev.ent, *ev.reg);
 
     // Bottom-left and top-right in pos-coords (Y-up)
     sf::Vector2f bl = worldPos + bounds.bounds.position;
@@ -189,11 +189,12 @@ void ButtonComp::OnClick(ClickEvent& ev) {
     if (exec) exec(ev);
 }
 
-size_t wrapText(std::string& string, sf::Text& text, float maxWidth) {
+size_t wrapText(std::string string, sf::Text& text, float maxWidth) {
     size_t newlines = 0;
     text.setString(string);
+    float firstPos = text.findCharacterPos(0).x;
     for (size_t i = 0; i < string.size(); i++) {
-        if (text.findCharacterPos(i).x - text.findCharacterPos(0).x > maxWidth) {
+        if (text.findCharacterPos(i).x - firstPos > maxWidth) {
             if (i == 0) [[unlikely]] {
                 throw std::runtime_error("Couldn't wrap text: width too small.");
             }
@@ -226,7 +227,7 @@ void TextComp::OnResize(BoundsResizeEvent& ev) {
 }
 
 void TextComp::OnRender(RenderEvent& ev) {
-    sf::Vector2f pos = Physics::worldPos(ev.ent, *ev.reg);
+    sf::Vector2f pos = Physics::getWorldPos(ev.ent, *ev.reg);
     if (auto* boundsComp = ev.reg->try_get<BoundsComp>(ev.ent)) {
         pos += boundsComp->bounds.position;
         pos.y += boundsComp->bounds.size.y;

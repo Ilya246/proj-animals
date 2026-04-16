@@ -11,7 +11,12 @@ include(FetchContent)
 
 set(ENTT_VERSION "3.16.0")
 
+# TODO: make this only run in debug configuration
 add_compile_options(-g -O0)
+
+if (MINGW)
+    add_compile_options(-Wa,-mbig-obj)
+endif()
 
 # Try to find EnTT on the system
 message(STATUS "Detecting system EnTT")
@@ -124,7 +129,8 @@ if (MSVC)
 else()
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
 endif()
-add_compile_options(-g -O0)
+# TODO: make this only run in debug configuration
+target_compile_options(${PROJECT_NAME} PRIVATE -DAPROJ_DEBUG)
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
   COMMENT "Copying resources to output directory"

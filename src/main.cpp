@@ -5,7 +5,7 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Window/WindowEnums.hpp>
 #include <filesystem>
-#include <print>
+#include <iostream>
 
 #include "core/components.hpp"
 #include "core/events.hpp"
@@ -80,7 +80,7 @@ int main() {
         dispatcher.trigger(updateEv);
     }
 
-    std::println("Writing save to save.yml...");
+    std::cout << "Writing save to save.yml...";
     std::ofstream save_s("save.yml");
     save_s << serialize_registry(registry);
 
@@ -89,7 +89,7 @@ int main() {
 
 
 void genWorld(entt::registry& registry) {
-    const auto world = registry.create();
+    entt::entity world = registry.create();
     registry.emplace<PositionComp>(world, sf::Vector2f(0.f, 0.f), world);
     TileMapComp& mapComp = registry.emplace<TileMapComp>(world, 64, 64, 32.f, &tex_map["tileset"]);
     registry.emplace<RenderableComp>(world, z_world);
@@ -99,17 +99,26 @@ void genWorld(entt::registry& registry) {
     for (int i = 0; i < 200; ++i) {
         int x = math::rand(0, mapComp.width - 1);
         int y = math::rand(0, mapComp.height - 1);
-        mapComp.grid[x + y * mapComp.width] = TileType::Wall;
+
+        entt::entity wall = registry.create();
+        registry.emplace<PositionComp>(wall, sf::Vector2f(x * 32.f + 16.f, y * 32.f + 16.f), world);
+        registry.emplace<BoundsComp>(wall, sf::FloatRect{{-16.f, -16.f}, {32.f, 32.f}});
+        registry.emplace<ColliderComp>(wall, CollisionLayer::Wall, CollisionLayer::None);
+        registry.emplace<RenderableComp>(wall, z_world + 1);
+        sf::Sprite wallSprite(tex_map["wall"]);
+        wallSprite.setOrigin(sf::Vector2f(tex_map["wall"].getSize()) / 2.f);
+        registry.emplace<SpriteComp>(wall, std::move(wallSprite));
     }
     // Generate the efficient vertex array
     MapUtil::rebuildMesh(world, mapComp, registry);
 
     // Create a player entity
-    const auto player = registry.create();
-    registry.emplace<PositionComp>(player, sf::Vector2f(64.f, 64.f), world);
+    entt::entity player = registry.create();
+    registry.emplace<PositionComp>(player, sf::Vector2f(0.f, 0.f), world);
     registry.emplace<PhysicsComp>(player, sf::Vector2f(0.f, 0.f), 1600.f);
     registry.emplace<BoundsComp>(player, sf::FloatRect{{-16.f, -16.f}, {32.f, 32.f}});
     registry.emplace<InputMovementComp>(player, 600.f, 3000.f);
+    registry.emplace<ColliderComp>(player, CollisionLayer::Player, CollisionLayer::Wall | CollisionLayer::Player);
 
     sf::Sprite playerSprite(tex_map["mob"]);
     playerSprite.setColor(sf::Color::Green); // tint green to distinguish
@@ -131,7 +140,8 @@ void genWorld(entt::registry& registry) {
         registry.emplace<PhysicsComp>(ball, vel, 10.f);
         registry.emplace<BoundsComp>(ball, sf::FloatRect{{-8.f, -8.f}, {16.f, 16.f}});
         registry.emplace<ClickListenerComp>(ball);
-        registry.emplace<ButtonComp>(ball, [](ClickEvent&) { std::println("test"); });
+        registry.emplace<ButtonComp>(ball, [](ClickEvent&) { std::cout << "test"; });
+        registry.emplace<ColliderComp>(ball, CollisionLayer::Player, CollisionLayer::Wall | CollisionLayer::Player, 2.f);
 
         sf::Sprite ballSprite(tex_map["mob"]);
         ballSprite.setColor(sf::Color::Red);        // tint red
@@ -226,8 +236,8 @@ void genUI(entt::registry& registry) {
     sideLayout.mode = UILayoutMode::Vertical;
 
     // Side panel items
-    const char* itemNames[] = {"Entity List", "Physics Debug", "Tile Map Info",
-                               "Input State", "Serialization"};
+    const char* itemNames[] = {"Panel 1", "Panel 2", "Panel 3",
+                               "Panel 4", "Panel 5"};
 
     for (const char* name : itemNames) {
         entt::entity item = registry.create();

@@ -2,6 +2,8 @@
 #include <entt/entt.hpp>
 #include <SFML/Graphics/Rect.hpp>
 #include <SFML/System/Vector2.hpp>
+#include <unordered_map>
+#include "entt/entity/fwd.hpp"
 #include "serialization/serialization.hpp"
 
 struct PositionComp {
@@ -12,9 +14,9 @@ struct PositionComp {
 };
 
 struct PhysicsComp {
-    // Move this much each second
+    // m/s velocity
     sf::Vector2f velocity;
-    // Reduce velocity by this much each second
+    // m/s^2 drag
     float drag = 0.f;
 
     std::optional<sf::FloatRect> bounds{};
@@ -29,6 +31,44 @@ struct BoundsComp {
     void resize(const sf::FloatRect& newBounds, entt::entity e, entt::registry& reg);
 
     REGISTER_SERIALIZABLE(BoundsComp, Bounds)
+};
+
+enum class CollisionLayer : uint16_t {
+    None = 0,
+    Player = 1 << 0,
+    Wall = 1 << 1,
+};
+
+inline CollisionLayer operator|(CollisionLayer a, CollisionLayer b) {
+    return (CollisionLayer)((uint16_t)a | (uint16_t)b);
+}
+
+inline CollisionLayer operator&(CollisionLayer a, CollisionLayer b) {
+    return (CollisionLayer)((uint16_t)a & (uint16_t)b);
+}
+
+// Lets this entity collide with other ColliderComp entities
+struct ColliderComp {
+    CollisionLayer layer;
+    CollisionLayer mask;
+    float mass = 5.f;
+    float restitution = 0.5f;
+
+    // used in the system to block movement of freshly collided ents
+    bool move_blocked = false;
+
+    REGISTER_SERIALIZABLE(ColliderComp, Collider)
+};
+
+// Required for child entities to have collision
+// Does *not* currently support cross-parent collision
+struct ColliderMapComp {
+    float chunk_size = 32.f;
+    std::unordered_map<uint64_t, std::vector<entt::entity>> spatial_map = {};
+
+    std::pair<int32_t, int32_t> to_chunk(sf::Vector2f pos);
+    uint64_t to_hash(sf::Vector2f pos);
+    uint64_t chunk_hash(int32_t x, int32_t y);
 };
 
 template<typename TComp>

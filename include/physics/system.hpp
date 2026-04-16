@@ -15,8 +15,8 @@ struct PhysicsSystem : System<PhysicsSystem> {
 namespace Physics {
 
 entt::entity getWorld(const entt::entity&, const entt::registry&);
-sf::Vector2f worldPos(const entt::entity&, const entt::registry&);
-std::pair<entt::entity, sf::Vector2f> getWorldPos(const entt::entity&, const entt::registry&);
-std::pair<entt::entity, sf::Vector2f> getWorldPos(const entt::entity& parent, const sf::Vector2f& pos, const entt::registry&);
+sf::Vector2f getWorldPos(const entt::entity&, const entt::registry&);
+std::pair<entt::entity, sf::Vector2f> getWorldAndPos(const entt::entity&, const entt::registry&);
+std::pair<entt::entity, sf::Vector2f> getWorldAndPos(const entt::entity& parent, const sf::Vector2f& pos, const entt::registry&);
 
 }

@@ -91,4 +91,6 @@ YAML::Node serialize_registry(entt::registry& reg);
 
 void deserialize_entity(const YAML::Node& node, entt::registry& reg);
 
+void deserialize_entity(const YAML::Node& node, entt::registry& reg, entt::entity into);
+
 void deserialize_registry(const YAML::Node& root, entt::registry& reg);

@@ -1,4 +1,5 @@
 #pragma once
+#include <SFML/System/Vector2.hpp>
 #include <limits>
 #include <random>
 #include <sys/types.h>
@@ -16,16 +17,9 @@ inline NumT randf(NumT min, NumT max) {
     return dis(gen);
 }
 
-inline uint32_t xorshift(uint32_t x) {
-    x ^= x << 13;
-    x ^= x >> 17;
-    x ^= x << 5;
-    return x;
-}
-inline xorshift_t xorshift() {
-    static xorshift_t seed = randf((float)std::numeric_limits<xorshift_t>::min(), (float)std::numeric_limits<xorshift_t>::max());
-    return seed = xorshift(seed);
-}
+uint32_t xorshift(uint32_t x);
+xorshift_t xorshift();
+
 inline const xorshift_t xorshift_range = std::numeric_limits<xorshift_t>::max() - std::numeric_limits<xorshift_t>::min();
 inline const double inv_xorshift_range = 1.0 / xorshift_range;
 

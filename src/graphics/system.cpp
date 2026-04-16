@@ -21,7 +21,7 @@ void DrawSystem::init(entt::registry& reg) {
     const std::filesystem::path textures_path("resources/textures");
     for (const auto& tex_file : std::filesystem::directory_iterator(textures_path)) {
         if (tex_file.is_regular_file()) {
-            auto name = tex_file.path().stem();
+            auto name = tex_file.path().stem().string();
             sf::Texture& file_texture = tex_map[name];
             if (!file_texture.loadFromFile(tex_file))
                 tex_map.erase(name);
@@ -50,7 +50,7 @@ void DrawSystem::update(const UpdateEvent& ev) {
     auto drawView = reg.view<RenderableComp, PositionComp>();
     renderables.clear();
     for (auto [entity, spr, pos] : drawView.each()) {
-        auto [worldEnt, entPos] = Physics::getWorldPos(entity, reg);
+        auto [worldEnt, entPos] = Physics::getWorldAndPos(entity, reg);
 
         renderables[worldEnt].emplace_back(entity, pos.position, spr);
     }
@@ -61,7 +61,7 @@ void DrawSystem::update(const UpdateEvent& ev) {
     auto cameraView = reg.view<CameraComp, PositionComp>();
     for (auto [camEntity, camComp, camPosComp] : cameraView.each()) {
         // Check where this camera is and set up its view to have SFML do coordinate translation for us
-        auto [worldEnt, camPos] = Physics::getWorldPos(camEntity, reg);
+        auto [worldEnt, camPos] = Physics::getWorldAndPos(camEntity, reg);
         sf::Vector2f camDrawPos = {camPos.x, camPos.y * -1.f};
         camComp.view.setCenter(camDrawPos);
         sf::Vector2f viewSize = (sf::Vector2f)windowSize / camComp.scale;
@@ -92,7 +92,7 @@ void DrawSystem::update(const UpdateEvent& ev) {
         for (auto [zLevel, entity] : draw) {
             bool set_scissor = false;
             if (auto* stencil = reg.try_get<StencilDrawComp>(entity)) {
-                sf::Vector2f pos = Physics::worldPos(entity, reg);
+                sf::Vector2f pos = Physics::getWorldPos(entity, reg);
                 sf::FloatRect bounds = get_optional_bounds(entity, *stencil, reg);
                 
                 sf::Vector2f viewSize = view.getSize();
@@ -142,7 +142,7 @@ void DrawSystem::update(const UpdateEvent& ev) {
 }
 
 void SpriteComp::OnRender(RenderEvent& ev) {
-    sf::Vector2f pos = Physics::worldPos(ev.ent, *ev.reg);
+    sf::Vector2f pos = Physics::getWorldPos(ev.ent, *ev.reg);
     pos.y *= -1.f;
     sprite.setPosition(pos);
     ev.window->draw(sprite);

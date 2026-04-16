@@ -48,7 +48,7 @@ void InputSystem::receiveClick(const ClickEvent& ev) {
     std::map<entt::entity, sf::Vector2f> clickMap;
     auto camView = ev.registry->view<CameraComp>();
     for (auto [entity, cam] : camView.each()) {
-        auto [worldEnt, worldPos] = Physics::getWorldPos(entity, *ev.registry);
+        auto [worldEnt, worldPos] = Physics::getWorldAndPos(entity, *ev.registry);
         sf::Vector2f camOrigin = cam.view.getCenter() - cam.view.getSize() * 0.5f;
         sf::Vector2f windowSize = (sf::Vector2f)ev.registry->ctx().get<sf::RenderWindow&>().getSize();
         sf::Vector2f viewSize = cam.view.getSize();
@@ -62,7 +62,7 @@ void InputSystem::receiveClick(const ClickEvent& ev) {
 
     auto clickableView = ev.registry->view<ClickListenerComp, PositionComp>();
     for (auto [entity, clickable, position] : clickableView.each()) {
-        auto [worldEnt, worldPos] = Physics::getWorldPos(entity, *ev.registry);
+        auto [worldEnt, worldPos] = Physics::getWorldAndPos(entity, *ev.registry);
         if (!clickMap.contains(worldEnt))
             continue;
         sf::Vector2f clickPos = clickMap.at(worldEnt);
