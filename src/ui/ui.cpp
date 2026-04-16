@@ -186,7 +186,7 @@ void UIRectComp::OnRender(RenderEvent& ev) {
 }
 
 void ButtonComp::OnClick(ClickEvent& ev) {
-    if (exec) exec(ev);
+    exec(ev);
 }
 
 size_t wrapText(std::string string, sf::Text& text, float maxWidth) {

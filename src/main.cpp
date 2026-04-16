@@ -15,6 +15,7 @@
 #include "input/components.hpp"
 #include "input/events.hpp"
 #include "physics/components.hpp"
+#include "physics/system.hpp"
 #include "serialization/serialization.hpp"
 #include "ui/components.hpp"
 #include "utility/math.hpp"
@@ -140,7 +141,7 @@ void genWorld(entt::registry& registry) {
         registry.emplace<PhysicsComp>(ball, vel, 10.f);
         registry.emplace<BoundsComp>(ball, sf::FloatRect{{-8.f, -8.f}, {16.f, 16.f}});
         registry.emplace<ClickListenerComp>(ball);
-        registry.emplace<ButtonComp>(ball, [](ClickEvent&) { std::cout << "test"; });
+        registry.emplace<ButtonComp>(ball, [](ClickEvent&) { std::cout << "test" << std::endl; });
         registry.emplace<ColliderComp>(ball, CollisionLayer::Player, CollisionLayer::Wall | CollisionLayer::Player, 2.f);
 
         sf::Sprite ballSprite(tex_map["mob"]);
@@ -284,4 +285,10 @@ void genUI(entt::registry& registry) {
                  14));
     descTextComp.text.setFillColor(sf::Color(200, 200, 220));
     bottomAlloc.children.push_back(descText);
+
+    auto rend_view = registry.view<RenderableComp, PositionComp>();
+    for (auto [entity, rend, pos] : rend_view.each()) {
+        if (Physics::getWorld(entity, registry) == uiWorld)
+            registry.emplace<NonSerializableComp>(entity);
+    }
 }
