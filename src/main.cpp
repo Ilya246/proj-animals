@@ -53,6 +53,10 @@ int main() {
 
     sf::Clock clock;
 
+    // Initial resize event
+    ScreenResizeEvent iScreenEv{window.getSize().x, window.getSize().y, &registry};
+    dispatcher.trigger(iScreenEv);
+
     // Main loop
     while (window.isOpen()) {
         // Delta time
@@ -88,6 +92,28 @@ int main() {
     return 0;
 }
 
+void spawnBall(entt::registry& registry, entt::entity world) {
+    const auto ball = registry.create();
+    float size_m = math::rand(0.5f, 1.5f);
+    sf::Vector2f pos(math::randf(50.f, 750.f), math::randf(50.f, 550.f));
+    sf::Vector2f vel(math::randf(-200.f, 200.f), math::randf(-200.f, 200.f));
+    registry.emplace<PositionComp>(ball, pos, world);
+    registry.emplace<PhysicsComp>(ball, vel, 10.f);
+    sf::Vector2f size = sf::Vector2f{32.f, 32.f} * size_m;
+    registry.emplace<BoundsComp>(ball, sf::FloatRect{-0.5f * size, size});
+    registry.emplace<ClickListenerComp>(ball);
+    registry.emplace<ButtonComp>(ball, [](ClickEvent&) { std::cout << "test" << std::endl; });
+    registry.emplace<ColliderComp>(ball, CollisionLayer::Player, CollisionLayer::Wall | CollisionLayer::Player, 5.f * size_m * size_m);
+
+    sf::Sprite ballSprite(tex_map["mob"]);
+    ballSprite.setColor(sf::Color::Red);        // tint red
+    ballSprite.setOrigin(sf::Vector2f(tex_map["mob"].getSize()) / 2.f);
+    // Scale down a bit so balls are smaller
+    ballSprite.setScale({size_m, size_m});
+    registry.emplace<SpriteComp>(ball, std::move(ballSprite));
+    registry.emplace<TextComp>(ball, sf::Text(font_map["hack"], "test", 15));
+    registry.emplace<RenderableComp>(ball, z_entity);
+}
 
 void genWorld(entt::registry& registry) {
     entt::entity world = registry.create();
@@ -134,24 +160,7 @@ void genWorld(entt::registry& registry) {
     // Create several ball entities with random positions/velocities
     constexpr std::size_t ballCount = 10;
     for (std::size_t i = 0; i < ballCount; ++i) {
-        const auto ball = registry.create();
-        sf::Vector2f pos(math::randf(50.f, 750.f), math::randf(50.f, 550.f));
-        sf::Vector2f vel(math::randf(-200.f, 200.f), math::randf(-200.f, 200.f));
-        registry.emplace<PositionComp>(ball, pos, world);
-        registry.emplace<PhysicsComp>(ball, vel, 10.f);
-        registry.emplace<BoundsComp>(ball, sf::FloatRect{{-8.f, -8.f}, {16.f, 16.f}});
-        registry.emplace<ClickListenerComp>(ball);
-        registry.emplace<ButtonComp>(ball, [](ClickEvent&) { std::cout << "test" << std::endl; });
-        registry.emplace<ColliderComp>(ball, CollisionLayer::Player, CollisionLayer::Wall | CollisionLayer::Player, 2.f);
-
-        sf::Sprite ballSprite(tex_map["mob"]);
-        ballSprite.setColor(sf::Color::Red);        // tint red
-        ballSprite.setOrigin(sf::Vector2f(tex_map["mob"].getSize()) / 2.f);
-        // Scale down a bit so balls are smaller
-        ballSprite.setScale({0.5f, 0.5f});
-        registry.emplace<SpriteComp>(ball, std::move(ballSprite));
-        registry.emplace<TextComp>(ball, sf::Text(font_map["hack"], "test", 15));
-        registry.emplace<RenderableComp>(ball, z_entity);
+        spawnBall(registry, world);
     }
 }
 
@@ -254,6 +263,25 @@ void genUI(entt::registry& registry) {
         itemTextComp.text.setFillColor(sf::Color::White);
         sideLayout.children.push_back(item);
     }
+    entt::entity spawnButton = registry.create();
+    set_ent_name(spawnButton, registry, "Spawn Button");
+    registry.emplace<PositionComp>(spawnButton, sf::Vector2f(0.f, 0.f), sidePanel);
+    registry.emplace<UIFillComp>(spawnButton);
+    registry.emplace<BoundsComp>(spawnButton);
+    registry.emplace<RenderableComp>(spawnButton, z_ui + 1);
+    registry.emplace<UIRectComp>(spawnButton, sf::Color(120, 0, 0, 128),
+                                    sf::Color(120, 120, 140), 1.f);
+    sideLayout.children.push_back(spawnButton);
+    registry.emplace<ClickListenerComp>(spawnButton);
+    registry.emplace<ButtonComp>(spawnButton, [&](ClickEvent&) {
+        auto pView = registry.view<InputMovementComp>();
+        entt::entity world;
+        for (auto [ent, mover] : pView.each()) {
+            world = Physics::getWorld(ent, registry);
+            break;
+        }
+        spawnBall(registry, world);
+    });
 
     // --- Bottom panel: text with wrapping demo ---
     entt::entity bottomPanel = registry.create();
@@ -286,8 +314,8 @@ void genUI(entt::registry& registry) {
     descTextComp.text.setFillColor(sf::Color(200, 200, 220));
     bottomAlloc.children.push_back(descText);
 
-    auto rend_view = registry.view<RenderableComp, PositionComp>();
-    for (auto [entity, rend, pos] : rend_view.each()) {
+    auto rend_view = registry.view<PositionComp>();
+    for (auto [entity, pos] : rend_view.each()) {
         if (Physics::getWorld(entity, registry) == uiWorld)
             registry.emplace<NonSerializableComp>(entity);
     }

@@ -151,13 +151,13 @@ void PhysicsSystem::update(const UpdateEvent& ev) {
                             float frac1 = m1 / massSum;
                             float frac2 = m2 / massSum;
                             if (!otherPhys) {
-                                frac1 = 1.f;
-                                frac2 = 0.f;
+                                frac1 = 0.f;
+                                frac2 = 1.f;
                             }
                             float d_rvel = (1.f + restitution) * -vRelDotN;
-                            phys.velocity += normal * d_rvel * frac1;
+                            phys.velocity += normal * d_rvel * frac2;
                             if (otherPhys)
-                                otherPhys->velocity -= normal * d_rvel * frac2;
+                                otherPhys->velocity -= normal * d_rvel * frac1;
                         }
                     }
                 }

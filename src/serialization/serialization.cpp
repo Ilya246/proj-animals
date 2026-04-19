@@ -31,7 +31,9 @@ YAML::Node serialize_registry(entt::registry& reg) {
     YAML::Node entities;
 
     for (auto [entity] : reg.view<entt::entity>().each()) {
-        entities.push_back(serialize_entity(reg, entity));
+        YAML::Node node = serialize_entity(reg, entity);
+        if (node["id"])
+            entities.push_back(node);
     }
 
     root["entities"] = entities;
