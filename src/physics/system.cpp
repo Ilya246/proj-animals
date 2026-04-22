@@ -27,7 +27,13 @@ void for_chunk(int enlarge, entt::registry& reg, entt::entity ent, PositionComp&
 }
 
 // returns: {P_i.x, P_i.y, t_A, t_B}
-sf::FloatRect line_line_intersect(sf::Vector2f A1, sf::Vector2f A2, sf::Vector2f B1, sf::Vector2f B2) {
+struct LineIntersectResult {
+    sf::Vector2f P_i;
+    float t_A;
+    float t_B;
+};
+
+LineIntersectResult line_line_intersect(sf::Vector2f A1, sf::Vector2f A2, sf::Vector2f B1, sf::Vector2f B2) {
     sf::Vector2f A = A2 - A1;
     sf::Vector2f B = B2 - B1;
     float f_A = A1.x * A2.y - A1.y * A2.x;
@@ -36,7 +42,7 @@ sf::FloatRect line_line_intersect(sf::Vector2f A1, sf::Vector2f A2, sf::Vector2f
     sf::Vector2f P_i = {(-f_A * B.x + A.x * f_B) / denom, (-f_A * B.y + A.y * f_B) / denom};
     float t_A = (A.dot(P_i) - A.dot(A1)) / A.lengthSquared();
     float t_B = (B.dot(P_i) - B.dot(B1)) / B.lengthSquared();
-    return {P_i, {t_A, t_B}};
+    return {P_i, t_A, t_B};
 }
 
 void PhysicsSystem::update(const UpdateEvent& ev) {
@@ -93,31 +99,49 @@ void PhysicsSystem::update(const UpdateEvent& ev) {
                     sf::Vector2f otherPos = otherPosComp.position;
                     sf::FloatRect otherBounds = reg.get<BoundsComp>(iEnt).bounds;
                     // reduce this to a point-rect intersect with us at 0, 0, rect being A1A2A3A4
-                    sf::FloatRect relBounds = sf::FloatRect{otherBounds.position + otherPos - ourBounds.position - pos.position - ourBounds.size, otherBounds.size + ourBounds.size};
+                    sf::Vector2f ourLowerLeft = pos.position + ourBounds.position;
+                    sf::Vector2f ourTopRight = ourLowerLeft + ourBounds.size;
+                    sf::Vector2f otherLowerLeft = otherPos + otherBounds.position;
+                    sf::Vector2f otherEffectivePos = otherLowerLeft - ourTopRight;
+                    sf::Vector2f otherEffectiveSize = ourBounds.size + otherBounds.size;
+                    sf::FloatRect relBounds = sf::FloatRect{otherEffectivePos, otherEffectiveSize};
 
-                    sf::Vector2f A1 = relBounds.position;
-                    sf::Vector2f A2 = {relBounds.position.x, relBounds.position.y + relBounds.size.y};
-                    sf::Vector2f A3 = relBounds.position + relBounds.size;
-                    sf::Vector2f A4 = {relBounds.position.x + relBounds.size.x, relBounds.position.y};
+                    LineIntersectResult best {{0.f, 0.f}, 2.f, 1.f};
+                    sf::Vector2f normal;
 
-                    sf::FloatRect intersects[4];
-                    intersects[0] = line_line_intersect(zeroVec, relMove, A1, A2);
-                    intersects[1] = line_line_intersect(zeroVec, relMove, A2, A3);
-                    intersects[2] = line_line_intersect(zeroVec, relMove, A3, A4);
-                    intersects[3] = line_line_intersect(zeroVec, relMove, A4, A1);
+                    if (relBounds.contains(zeroVec)) {
+                        best = {{0.f, 0.f}, 0.f, 0.5f};
+                        float distLeft = 0.f - relBounds.position.x;
+                        float distRight = (relBounds.position.x + relBounds.size.x) - 0.f;
+                        float distTop = 0.f - relBounds.position.y;
+                        float distBottom = (relBounds.position.y + relBounds.size.y) - 0.f;
 
-                    sf::FloatRect best {{0.f, 0.f}, {2.f, 1.f}};
-                    int best_i;
-                    for (int i = 0; i < 4; ++i) {
-                        sf::FloatRect& candidate = intersects[i];
-                        if (candidate.size.x >= 0.f && candidate.size.y >= 0.f && candidate.size.y <= 1.f && candidate.size.x < best.size.x) {
-                            best = candidate;
-                            best_i = i;
+                        // Find the shallowest penetration axis
+                        float minDist = std::min({distLeft, distRight, distTop, distBottom});
+                        if (minDist == distLeft) normal = {-1.f, 0.f};
+                        else if (minDist == distRight) normal = {1.f, 0.f};
+                        else if (minDist == distTop) normal = {0.f, -1.f};
+                        else normal = {0.f, 1.f};
+                    } else {
+                        sf::Vector2f A1 = relBounds.position;
+                        sf::Vector2f A2 = {relBounds.position.x, relBounds.position.y + relBounds.size.y};
+                        sf::Vector2f A3 = relBounds.position + relBounds.size;
+                        sf::Vector2f A4 = {relBounds.position.x + relBounds.size.x, relBounds.position.y};
+
+                        LineIntersectResult intersects[4];
+                        intersects[0] = line_line_intersect(zeroVec, relMove, A1, A2);
+                        intersects[1] = line_line_intersect(zeroVec, relMove, A2, A3);
+                        intersects[2] = line_line_intersect(zeroVec, relMove, A3, A4);
+                        intersects[3] = line_line_intersect(zeroVec, relMove, A4, A1);
+
+                        int best_i;
+                        for (int i = 0; i < 4; ++i) {
+                            LineIntersectResult& candidate = intersects[i];
+                            if (candidate.t_A >= 0.f && candidate.t_B >= 0.f && candidate.t_B <= 1.f && candidate.t_A < best.t_A) {
+                                best = candidate;
+                                best_i = i;
+                            }
                         }
-                    }
-                    if (best.size.x < 1.f) {
-                        // we collided, go ahead and process symmetrically
-                        sf::Vector2f normal;
                         switch (best_i) {
                             case (0): {
                                 normal = {-1.f, 0.f};
@@ -136,14 +160,16 @@ void PhysicsSystem::update(const UpdateEvent& ev) {
                                 break;
                             }
                         }
+                    }
+                    if (best.t_A < 1.f) {
+                        // we collided, go ahead and process symmetrically
                         // see if we're actually colliding
                         float vRelDotN = relVel.dot(normal);
                         if (vRelDotN < 0.f) {
-                            desiredMove *= best.size.x;
+                            desiredMove *= best.t_A;
                             ColliderComp& otherCollider = reg.get<ColliderComp>(iEnt);
                             move_blocked = true;
-                            otherPosComp.position += otherVel * ev.dt * best.size.x;
-                            pos.position += phys.velocity * ev.dt * best.size.x;
+                            pos.position += phys.velocity * ev.dt * best.t_A;
                             float restitution = collider->restitution * otherCollider.restitution;
                             float m1 = collider->mass;
                             float m2 = otherCollider.mass;
@@ -154,10 +180,31 @@ void PhysicsSystem::update(const UpdateEvent& ev) {
                                 frac1 = 0.f;
                                 frac2 = 1.f;
                             }
+
+                            // if we're inside, unclip us
+                            if (best.t_A == 0.0f) {
+                                float penetration = 0.f;
+                                if (normal.x == 1.f) penetration = relBounds.position.x + relBounds.size.x;
+                                else if (normal.x == -1.f) penetration = -relBounds.position.x;
+                                else if (normal.y == 1.f) penetration = relBounds.position.y + relBounds.size.y;
+                                else if (normal.y == -1.f) penetration = -relBounds.position.y;
+
+                                const float pen_adj = 0.01f;
+                                const float pen_frac = 0.8f; 
+                                float correctionMag = std::max(penetration - pen_adj, 0.0f) * pen_frac;
+                                sf::Vector2f correction = normal * correctionMag;
+
+                                pos.position += correction * frac2;
+                                if (otherPhys) {
+                                    otherPosComp.position -= correction * frac1;
+                                }
+                            }
+
                             float d_rvel = (1.f + restitution) * -vRelDotN;
                             phys.velocity += normal * d_rvel * frac2;
                             if (otherPhys)
                                 otherPhys->velocity -= normal * d_rvel * frac1;
+                            pos.position += phys.velocity * ev.dt * (1.f - best.t_A);
                         }
                     }
                 }
