@@ -6,7 +6,7 @@
 #include <SFML/Window/WindowEnums.hpp>
 #include <filesystem>
 #include <iostream>
-
+#include <format>
 #include "core/components.hpp"
 #include "core/events.hpp"
 #include "core/system.hpp"
@@ -85,7 +85,7 @@ int main() {
         dispatcher.trigger(updateEv);
     }
 
-    std::cout << "Writing save to save.yml...";
+    std::cout << std::format("Writing save to save.yml...") ;
     std::ofstream save_s("save.yml");
     save_s << serialize_registry(registry);
 
