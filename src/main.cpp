@@ -69,13 +69,18 @@ int main() {
                 break;
             }
             if (auto* mouseEv = event->getIf<sf::Event::MouseButtonPressed>()) {
-                ClickEvent clickEv(mouseEv->position, mouseEv->button, &registry);
+                GlobalClickEvent clickEv(mouseEv->position, mouseEv->button, &registry);
                 dispatcher.trigger(clickEv);
                 continue;
             }
             if (auto* resizeEv = event->getIf<sf::Event::Resized>()) {
                 ScreenResizeEvent screenEv{resizeEv->size.x, resizeEv->size.y, &registry};
                 dispatcher.trigger(screenEv);
+                continue;
+            }
+            if (auto* keyEv = event->getIf<sf::Event::KeyPressed>()) {
+                KeyPressEvent pressEv{keyEv->code, &registry};
+                dispatcher.trigger(pressEv);
                 continue;
             }
         }
@@ -206,14 +211,14 @@ void genUI(entt::registry& registry) {
     sidePanel.child("Spawn Button")
         .posFill()
         .rect(sf::Color(120, 0, 0, 128), sf::Color(120, 120, 140), 1.f)
-        .button([&](ClickEvent&) {
-            auto pView = registry.view<InputMovementComp>();
+        .button([](ClickEvent& click) {
+            auto pView = click.registry->view<InputMovementComp>();
             entt::entity world;
             for (auto [ent, mover] : pView.each()) {
-                world = Physics::getWorld(ent, registry);
+                world = Physics::getWorld(ent, *click.registry);
                 break;
             }
-            spawnBall(registry, world);
+            spawnBall(*click.registry, world);
         });
 
     // --- Bottom panel: text with wrapping demo ---

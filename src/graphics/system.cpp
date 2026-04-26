@@ -91,7 +91,14 @@ void DrawSystem::update(const UpdateEvent& ev) {
         window.setView(view);
 
         for (auto [zLevel, entity] : draw) {
+            bool cancelled = false;
+            ShouldRenderEvent shouldEv {entity, &reg, &window, &cancelled};
+            raise_local_event(reg, entity, shouldEv);
+            if (cancelled)
+                continue;
+
             bool set_scissor = false;
+            bool cancel_draw = false;
             if (auto* stencil = reg.try_get<StencilDrawComp>(entity)) {
                 sf::Vector2f pos = Physics::getWorldPos(entity, reg);
                 sf::FloatRect bounds = get_optional_bounds(entity, *stencil, reg);
@@ -113,14 +120,14 @@ void DrawSystem::update(const UpdateEvent& ev) {
                 if (inters.has_value()) {
                     scissorRect = *inters;
                     view.setScissor(scissorRect);
+                    window.setView(view);
                     set_scissor = true;
                 } else {
-                    view.setScissor(sf::FloatRect{{0.f, 0.f}, {0.f, 0.f}});
-                    set_scissor = true;
+                    cancel_draw = true;
                 }
-                window.setView(view);
             }
-            raise_local_event(reg, entity, RenderEvent{entity, &reg, &window});
+            if (!cancel_draw)
+                raise_local_event(reg, entity, RenderEvent{entity, &reg, &window});
             if (set_scissor) {
                 view.setScissor(sf::FloatRect{{0.f, 0.f}, {1.f, 1.f}}); // Clean up mask
                 window.setView(view);

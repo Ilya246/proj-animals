@@ -7,3 +7,10 @@ struct RenderEvent {
     entt::registry* reg;
     sf::RenderWindow* window;
 };
+
+struct ShouldRenderEvent {
+    entt::entity ent;
+    entt::registry* reg;
+    sf::RenderWindow* window;
+    bool* cancelled;
+};

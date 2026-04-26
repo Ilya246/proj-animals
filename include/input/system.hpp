@@ -9,5 +9,5 @@ struct InputSystem : System<InputSystem> {
         virtual int initPriority() override { return 64; };
 
         void update(const UpdateEvent&);
-        void receiveClick(const ClickEvent&);
+        void receiveClick(const GlobalClickEvent&);
 };

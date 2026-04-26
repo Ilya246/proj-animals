@@ -14,6 +14,13 @@ struct UIScreenComp {
     entt::entity camera;
 };
 
+// Causes us and all our children to not draw
+struct UIHiddenComp {
+    void OnTryDraw(ShouldRenderEvent&);
+
+    bool hidden = true;
+};
+
 ///
 /// Allocators
 ///
@@ -35,9 +42,9 @@ struct UILayoutComp {
     void OnResize(BoundsResizeEvent&);
 
     UILayoutMode mode = UILayoutMode::Vertical;
-    std::vector<entt::entity> children;
     float padding = 0.f; // inner padding around all children
     float spacing = 0.f; // gap between adjacent children
+    std::vector<entt::entity> children = {};
 };
 
 ///

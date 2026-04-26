@@ -12,7 +12,7 @@
 
 void InputSystem::init(entt::registry& reg) {
     subscribe_global_event<UpdateEvent, &InputSystem::update>(reg, this);
-    subscribe_global_event<ClickEvent, &InputSystem::receiveClick>(reg, this);
+    subscribe_global_event<GlobalClickEvent, &InputSystem::receiveClick>(reg, this);
     subscribe_local_event<InputMovementComp, GetDragEvent, &InputMovementComp::OnGetDrag>(reg);
 }
 
@@ -44,7 +44,7 @@ void InputSystem::update(const UpdateEvent& ev) {
     }
 }
 
-void InputSystem::receiveClick(const ClickEvent& ev) {
+void InputSystem::receiveClick(const GlobalClickEvent& ev) {
     std::map<entt::entity, sf::Vector2f> clickMap;
     auto camView = ev.registry->view<CameraComp>();
     for (auto [entity, cam] : camView.each()) {
@@ -70,7 +70,7 @@ void InputSystem::receiveClick(const ClickEvent& ev) {
         sf::FloatRect bounds = get_optional_bounds(entity, clickable, *ev.registry);
         bounds.position += position.position;
         if (bounds.contains(clickPos))
-            raise_local_event(*ev.registry, entity, ev);
+            raise_local_event(*ev.registry, entity, ClickEvent{ev.pixelCoords, ev.button, entity, ev.registry});
     }
 }
 

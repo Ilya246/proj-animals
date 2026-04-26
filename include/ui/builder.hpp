@@ -22,6 +22,7 @@ struct UIBuilder {
         r.emplace<RenderableComp>(ent, r.get<RenderableComp>(parent).zLevel + 1);
         r.emplace<BoundsComp>(ent);
         r.emplace<NonSerializableComp>(ent);
+        r.emplace<UIHiddenComp>(ent, false);
 
         if (r.valid(parent)) {
             if (auto* alloc = r.try_get<UIFullAllocatorComp>(parent)) {
@@ -37,6 +38,12 @@ struct UIBuilder {
     entt::entity get() const { return ent; }
     operator entt::entity() const { return ent; }
 
+    template<typename Comp, typename... Args>
+    UIBuilder& emplace(Args&&... args) {
+        reg.emplace<Comp>(ent, std::forward<Args>(args)...);
+        return *this;
+    }
+
     static UIBuilder makeWorld(entt::registry& r, const std::string& name = "") {
         UIBuilder world = {r.create(), r};
         set_ent_name(world.ent, r, name);
@@ -44,6 +51,7 @@ struct UIBuilder {
         world.emplace<RenderableComp>(z_ui);
         world.emplace<BoundsComp>();
         world.emplace<UIFullAllocatorComp>();
+        world.emplace<UIHiddenComp>(false);
 
         entt::entity cam = r.create();
         set_ent_name(cam, r, name + ": Camera");
@@ -59,8 +67,7 @@ struct UIBuilder {
     }
 
     UIBuilder& posAnchor(const sf::FloatRect& bounds) {
-        reg.emplace<UIAnchorComp>(ent, bounds);
-        return *this;
+        return emplace<UIAnchorComp>(bounds);
     }
 
     UIBuilder& posAnchor(float pX, float pY, float sX, float sY) {
@@ -68,21 +75,15 @@ struct UIBuilder {
     }
 
     UIBuilder& posFill() {
-        reg.emplace<UIFillComp>(ent);
-        return *this;
+        return emplace<UIFillComp>();
     }
 
     UIBuilder& allocatorFull() {
-        reg.emplace<UIFullAllocatorComp>(ent);
-        return *this;
+        return emplace<UIFullAllocatorComp>();
     }
 
     UIBuilder& allocatorLayout(UILayoutMode mode, float padding = 0.f, float spacing = 0.f) {
-        auto& lay = reg.emplace<UILayoutComp>(ent);
-        lay.mode = mode;
-        lay.padding = padding;
-        lay.spacing = spacing;
-        return *this;
+        return emplace<UILayoutComp>(mode, padding, spacing);
     }
 
     UIBuilder& zIndex(int32_t z) {
@@ -91,8 +92,7 @@ struct UIBuilder {
     }
 
     UIBuilder& rect(sf::Color fill, sf::Color border, float thickness = 2.f) {
-        reg.emplace<UIRectComp>(ent, fill, border, thickness);
-        return *this;
+        return emplace<UIRectComp>(fill, border, thickness);
     }
 
     UIBuilder& text(const std::string& str, const std::string& font, unsigned int size, sf::Color color = sf::Color::White, bool wrap = false) {
@@ -103,19 +103,15 @@ struct UIBuilder {
     }
 
     UIBuilder& button(std::function<void(ClickEvent&)>&& cb) {
-        reg.emplace<ButtonComp>(ent, cb);
-        reg.emplace<ClickListenerComp>(ent);
-        return *this;
+        return emplace<ButtonComp>(cb).emplace<ClickListenerComp>();
     }
 
     UIBuilder& stencil() {
-        reg.emplace<StencilDrawComp>(ent);
-        return *this;
+        return emplace<StencilDrawComp>();
     }
 
-    template<typename Comp, typename... Args>
-    UIBuilder& emplace(Args&&... args) {
-        reg.emplace<Comp>(ent, std::forward<Args>(args)...);
+    UIBuilder& hide() {
+        reg.get<UIHiddenComp>(ent).hidden = true;
         return *this;
     }
 };

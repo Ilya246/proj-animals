@@ -16,6 +16,7 @@
 void UISystem::init(entt::registry& reg) {
     subscribe_global_event<ScreenResizeEvent, &UISystem::onScreenResize>(reg, this);
 
+    subscribe_local_event<UIHiddenComp, ShouldRenderEvent, &UIHiddenComp::OnTryDraw>(reg);
     subscribe_local_event<UIFullAllocatorComp, BoundsResizeEvent, &UIFullAllocatorComp::OnResize>(reg);
     subscribe_local_event<UILayoutComp, BoundsResizeEvent, &UILayoutComp::OnResize>(reg);
     subscribe_local_event<UIFillComp, UISizeAllocatedEvent, &UIFillComp::OnAllocate>(reg);
@@ -64,6 +65,26 @@ void UISystem::onScreenResize(const ScreenResizeEvent& ev) {
             camPos->position = viewSize * 0.5f;
         }
     }
+}
+
+///
+/// Utility
+///
+
+bool any_parent_hidden(entt::entity ent, entt::registry& reg) {
+    if (auto* hidden = reg.try_get<UIHiddenComp>(ent))
+        if (hidden->hidden)
+            return true;
+
+    PositionComp& pos = reg.get<PositionComp>(ent);
+    if (pos.parent == ent)
+        return false;
+
+    return any_parent_hidden(pos.parent, reg);
+}
+
+void UIHiddenComp::OnTryDraw(ShouldRenderEvent& ev) {
+    *ev.cancelled = any_parent_hidden(ev.ent, *ev.reg);
 }
 
 ///
