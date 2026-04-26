@@ -30,6 +30,10 @@ struct TileMapComp {
     REGISTER_SERIALIZABLE(TileMapComp, TileMap)
 };
 
+struct WorldComp {
+    entt::entity lastCamera;
+};
+
 namespace MapUtil {
 
 void rebuildMesh(entt::entity ent, TileMapComp& map, entt::registry& reg);

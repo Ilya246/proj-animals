@@ -66,6 +66,14 @@ struct UIAnchorComp {
     sf::FloatRect bounds;
 };
 
+// Makes this UI ignore allocated space and take a fixed size
+struct UIAbsoluteBoundsComp {
+    void OnAllocate(UISizeAllocatedEvent&);
+
+    // Absolute bounds
+    sf::FloatRect bounds;
+};
+
 ///
 /// Elements
 ///
@@ -77,6 +85,26 @@ struct UIRectComp {
     sf::Color fillColor = sf::Color::Transparent;
     sf::Color borderColor = sf::Color::White;
     float borderThickness = 1.f;
+};
+
+struct UIWindowComp {
+    void OnRender(RenderEvent&);
+
+    sf::Color fillColor = sf::Color::Transparent;
+    sf::Color borderColor = sf::Color::White;
+    sf::Color headerColor = sf::Color::Blue;
+    float borderThickness = 1.f;
+    float headerHeight = 20.f;
+};
+
+struct DraggableComp {
+    void OnClick(ClickEvent&);
+
+    std::optional<sf::FloatRect> bounds = {};
+    bool being_dragged = false;
+    sf::Vector2f anchorCoords = {0.f, 0.f};
+
+    REGISTER_SERIALIZABLE(DraggableComp, Draggable)
 };
 
 // run code on click

@@ -13,6 +13,7 @@
 #include "physics/components.hpp"
 #include "physics/system.hpp"
 #include "utility/formatters.hpp" // IWYU pragma: keep
+#include "world/components.hpp"
 
 void DrawSystem::init(entt::registry& reg) {
     subscribe_global_event<UpdateEvent, &DrawSystem::update>(reg, this);
@@ -67,6 +68,10 @@ void DrawSystem::update(const UpdateEvent& ev) {
         camComp.view.setCenter(camDrawPos);
         sf::Vector2f viewSize = (sf::Vector2f)windowSize / camComp.scale;
         camComp.view.setSize(viewSize);
+        if (auto* worldC = reg.try_get<WorldComp>(worldEnt))
+            worldC->lastCamera = camEntity;
+        else
+            reg.emplace<WorldComp>(worldEnt).lastCamera = camEntity;
 
         // Anything intersecting with those bounds should be rendered
         sf::FloatRect camBounds{camPos - viewSize * 0.5f, viewSize};
@@ -92,7 +97,7 @@ void DrawSystem::update(const UpdateEvent& ev) {
 
         for (auto [zLevel, entity] : draw) {
             bool cancelled = false;
-            ShouldRenderEvent shouldEv {entity, &reg, &window, &cancelled};
+            ShouldRenderEvent shouldEv {entity, &reg, &cancelled};
             raise_local_event(reg, entity, shouldEv);
             if (cancelled)
                 continue;
@@ -143,3 +148,12 @@ void SpriteComp::OnRender(RenderEvent& ev) {
     sprite.setPosition(pos);
     ev.window->draw(sprite);
 }
+
+namespace Graphics {
+    std::optional<entt::entity> try_get_camera(entt::entity world, entt::registry& reg) {
+        if (auto* worldC = reg.try_get<WorldComp>(world))
+            return worldC->lastCamera;
+
+        return {};
+    }
+};

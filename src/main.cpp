@@ -69,9 +69,18 @@ int main() {
                 break;
             }
             if (auto* mouseEv = event->getIf<sf::Event::MouseButtonPressed>()) {
-                GlobalClickEvent clickEv(mouseEv->position, mouseEv->button, &registry);
+                GlobalClickEvent clickEv(mouseEv->position, mouseEv->button, true, &registry);
                 dispatcher.trigger(clickEv);
                 continue;
+            }
+            if (auto* mouseEv = event->getIf<sf::Event::MouseButtonReleased>()) {
+                GlobalClickEvent clickEv(mouseEv->position, mouseEv->button, false, &registry);
+                dispatcher.trigger(clickEv);
+                continue;
+            }
+            if (auto* moveEv = event->getIf<sf::Event::MouseMoved>()) {
+                GlobalMouseMoveEvent mouseEv(moveEv->position, &registry);
+                dispatcher.trigger(mouseEv);
             }
             if (auto* resizeEv = event->getIf<sf::Event::Resized>()) {
                 ScreenResizeEvent screenEv{resizeEv->size.x, resizeEv->size.y, &registry};
@@ -237,4 +246,18 @@ void genUI(entt::registry& registry) {
                  "rewrap accordingly. Stencil clipping ensures content "
                  "stays within its panel boundaries.", "hack",
                  14, sf::Color(200, 200, 220), true);
+
+    UIBuilder dragWindow =
+        uiWorld.child("Draggable Window")
+            .posAbsolute({{300.f, 400.f}, {250.f, 150.f}})
+            .allocatorFull()
+            .window(sf::Color(35, 35, 45, 240),
+                sf::Color(130, 130, 150),
+                sf::Color(70, 70, 100), 2.f, 24.f)
+            .draggable(sf::FloatRect{{0.f, 150.f - 24.f}, {250.f, 24.f}})
+            .zIndex(z_ui + 3);
+
+    dragWindow.child("Draggable Text")
+        .posAnchor(0.05f, 0.05f, 0.9f, 0.79f)
+        .text("Drag me around by my header!\n\nPress ESC anytime to toggle my visibility.", "hack", 14, sf::Color::White, true);
 }

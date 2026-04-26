@@ -8,3 +8,7 @@ struct DrawSystem : System<DrawSystem> {
 
         void update(const UpdateEvent&);
 };
+
+namespace Graphics {
+    std::optional<entt::entity> try_get_camera(entt::entity world, entt::registry& reg);
+};

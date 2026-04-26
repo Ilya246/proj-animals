@@ -6,6 +6,8 @@
 #include "physics/components.hpp"
 #include "core/components.hpp"
 #include "ui/font.hpp"
+#include "utility/utility.hpp"
+#include <SFML/Graphics/Rect.hpp>
 #include <entt/entt.hpp>
 #include <string>
 #include <functional>
@@ -44,6 +46,13 @@ struct UIBuilder {
         return *this;
     }
 
+    template<typename Comp, typename... Args>
+    UIBuilder& ensure(Args&&... args) {
+        if (!reg.try_get<Comp>(ent))
+            reg.emplace<Comp>(ent, std::forward<Args>(args)...);
+        return *this;
+    }
+
     static UIBuilder makeWorld(entt::registry& r, const std::string& name = "") {
         UIBuilder world = {r.create(), r};
         set_ent_name(world.ent, r, name);
@@ -78,6 +87,11 @@ struct UIBuilder {
         return emplace<UIFillComp>();
     }
 
+    UIBuilder& posAbsolute(sf::FloatRect bounds) {
+        reg.get<PositionComp>(ent).position = bounds.position;
+        return emplace<UIAbsoluteBoundsComp>(sf::FloatRect{zeroVec, bounds.size});
+    }
+
     UIBuilder& allocatorFull() {
         return emplace<UIFullAllocatorComp>();
     }
@@ -95,6 +109,10 @@ struct UIBuilder {
         return emplace<UIRectComp>(fill, border, thickness);
     }
 
+    UIBuilder& window(sf::Color fill, sf::Color border, sf::Color header, float thickness = 2.f, float headerHeight = 20.f) {
+        return emplace<UIWindowComp>(fill, border, header, thickness, headerHeight);
+    }
+
     UIBuilder& text(const std::string& str, const std::string& font, unsigned int size, sf::Color color = sf::Color::White, bool wrap = false) {
         auto& t = reg.emplace<TextComp>(ent, sf::Text(font_map[font], str, size));
         t.text.setFillColor(color);
@@ -103,7 +121,11 @@ struct UIBuilder {
     }
 
     UIBuilder& button(std::function<void(ClickEvent&)>&& cb) {
-        return emplace<ButtonComp>(cb).emplace<ClickListenerComp>();
+        return emplace<ButtonComp>(cb).ensure<ClickListenerComp>();
+    }
+
+    UIBuilder& draggable(std::optional<sf::FloatRect> bounds = {}) {
+        return emplace<DraggableComp>(bounds).ensure<ClickListenerComp>();
     }
 
     UIBuilder& stencil() {

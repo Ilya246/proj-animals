@@ -11,6 +11,5 @@ struct RenderEvent {
 struct ShouldRenderEvent {
     entt::entity ent;
     entt::registry* reg;
-    sf::RenderWindow* window;
     bool* cancelled;
 };
