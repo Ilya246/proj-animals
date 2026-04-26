@@ -1,13 +1,12 @@
-#include <SFML/Graphics/Rect.hpp>
-#include <SFML/Graphics/Texture.hpp>
 #include <cstdlib>
-#include <entt/entt.hpp>
-#include <SFML/Graphics.hpp>
-#include <SFML/Window/WindowEnums.hpp>
 #include <filesystem>
 #include <iostream>
 #include <format>
-#include "core/components.hpp"
+#include <SFML/Graphics/Rect.hpp>
+#include <SFML/Graphics/Texture.hpp>
+#include <entt/entt.hpp>
+#include <SFML/Graphics.hpp>
+#include <SFML/Window/WindowEnums.hpp>
 #include "core/events.hpp"
 #include "core/system.hpp"
 #include "graphics/components.hpp"
@@ -17,6 +16,7 @@
 #include "physics/components.hpp"
 #include "physics/system.hpp"
 #include "serialization/serialization.hpp"
+#include "ui/builder.hpp"
 #include "ui/components.hpp"
 #include "utility/math.hpp"
 #include "world/components.hpp"
@@ -85,7 +85,7 @@ int main() {
         dispatcher.trigger(updateEv);
     }
 
-    std::cout << std::format("Writing save to save.yml...") ;
+    std::cout << std::format("Writing save to save.yml...");
     std::ofstream save_s("save.yml");
     save_s << serialize_registry(registry);
 
@@ -166,157 +166,70 @@ void genWorld(entt::registry& registry) {
 
 void genUI(entt::registry& registry) {
     // --- UI world root entity ---
-    entt::entity uiWorld = registry.create();
-    set_ent_name(uiWorld, registry, "UI World");
-    registry.emplace<PositionComp>(uiWorld, sf::Vector2f(0.f, 0.f), uiWorld);
-    registry.emplace<BoundsComp>(uiWorld, sf::FloatRect{{0.f, 0.f}, {800.f, 600.f}});
-    UIFullAllocatorComp& worldAlloc = registry.emplace<UIFullAllocatorComp>(uiWorld);
-
-    // --- UI camera (will be repositioned by UIScreenComp on resize) ---
-    entt::entity uiCamera = registry.create();
-    set_ent_name(uiCamera, registry, "UI Camera");
-    registry.emplace<PositionComp>(uiCamera, sf::Vector2f(0.f, 0.f), uiWorld);
-    registry.emplace<CameraComp>(uiCamera, 1.f, z_ui);
-
-    // Link screen component to camera
-    registry.emplace<UIScreenComp>(uiWorld, uiCamera);
-    registry.emplace<RenderableComp>(uiWorld, z_ui);
+    UIBuilder uiWorld = UIBuilder::makeWorld(registry, "UI World");
 
     // --- Top panel: a bordered panel at the top of the screen ---
-    entt::entity topPanel = registry.create();
-    set_ent_name(topPanel, registry, "Top Panel");
-    registry.emplace<PositionComp>(topPanel, sf::Vector2f(0.f, 0.f), uiWorld);
-    registry.emplace<UIAnchorComp>(topPanel, sf::FloatRect{{0.f, 0.7f}, {1.f, 0.3f}});
-    worldAlloc.children.push_back(topPanel);
-    registry.emplace<BoundsComp>(topPanel, sf::FloatRect{{0.f, 0.f}, {800.f, 100.f}});
-    registry.emplace<RenderableComp>(topPanel, z_ui);
-    registry.emplace<UIRectComp>(topPanel, sf::Color(30, 30, 30, 200),
-                                  sf::Color::White, 2.f);
-    registry.emplace<StencilDrawComp>(topPanel);
-    auto& topLayout = registry.emplace<UILayoutComp>(topPanel);
-    topLayout.mode = UILayoutMode::Horizontal;
-    topLayout.padding = 8.f;
-    topLayout.spacing = 8.f;
+    UIBuilder topPanel =
+        uiWorld.child("Top Panel")
+            .posAnchor(0.f, 0.8f, 1.f, 0.2f)
+            .rect(sf::Color(30, 30, 30, 200), sf::Color(100, 100, 120), 2.f)
+            .allocatorLayout(UILayoutMode::Horizontal, 0.f, 4.f);
 
-    // --- Child: title text ---
-    entt::entity titleText = registry.create();
-    set_ent_name(titleText, registry, "Title Text");
-    registry.emplace<PositionComp>(titleText, sf::Vector2f(0.f, 0.f), topPanel);
-    registry.emplace<UIFillComp>(titleText);
-    registry.emplace<BoundsComp>(titleText, sf::FloatRect{{0.f, 0.f}, {200.f, 40.f}});
-    registry.emplace<RenderableComp>(titleText, z_ui + 1);
-    auto& titleTextComp = registry.emplace<TextComp>(titleText,
-        sf::Text(font_map["hack"], "Animals UI Demo", 22));
-    titleTextComp.text.setFillColor(sf::Color::White);
-    titleTextComp.wrap = false;
-
-    // --- Child: spacer (fills remaining horizontal space) ---
-    entt::entity spacer = registry.create();
-    set_ent_name(spacer, registry, "Spacer");
-    registry.emplace<PositionComp>(spacer, sf::Vector2f(0.f, 0.f), topPanel);
-    registry.emplace<UIFillComp>(spacer);
-    registry.emplace<BoundsComp>(spacer, sf::FloatRect{{0.f, 0.f}, {1.f, 1.f}});
-    registry.emplace<RenderableComp>(spacer, z_ui + 1);
-
-    // --- Child: status text ---
-    entt::entity statusText = registry.create();
-    set_ent_name(statusText, registry, "Status Text");
-    registry.emplace<PositionComp>(statusText, sf::Vector2f(0.f, 0.f), topPanel);
-    registry.emplace<UIFillComp>(statusText);
-    registry.emplace<BoundsComp>(statusText, sf::FloatRect{{0.f, 0.f}, {150.f, 40.f}});
-    registry.emplace<RenderableComp>(statusText, z_ui + 1);
-    auto& statusTextComp = registry.emplace<TextComp>(statusText,
-        sf::Text(font_map["hack"], "Status: OK", 16));
-    statusTextComp.text.setFillColor(sf::Color::Green);
-
-    topLayout.children = {titleText, spacer, statusText};
+    topPanel.child("Title Text")
+        .posFill()
+        .text("Animals UI Demo", "hack", 22);
+    topPanel.child("Spacer")
+        .posFill()
+        .rect(sf::Color(100, 100, 120, 128), sf::Color(40, 40, 50), 4.f);
+    topPanel.child("Status Text")
+        .posFill()
+        .text("Status: OK", "hack", 16, sf::Color::Green);
 
     // --- Side panel: vertical list on the left ---
-    entt::entity sidePanel = registry.create();
-    set_ent_name(sidePanel, registry, "Side Panel");
-    registry.emplace<PositionComp>(sidePanel, sf::Vector2f(0.f, 0.f), uiWorld);
-    registry.emplace<UIAnchorComp>(sidePanel, sf::FloatRect{{0.f, 0.2f}, {0.2f, 0.5f}});
-    worldAlloc.children.push_back(sidePanel);
-    registry.emplace<BoundsComp>(sidePanel, sf::FloatRect{{0.f, 0.f}, {180.f, 500.f}});
-    registry.emplace<RenderableComp>(sidePanel, z_ui);
-    registry.emplace<UIRectComp>(sidePanel, sf::Color(40, 40, 50, 220),
-                                  sf::Color(100, 100, 120), 1.f);
-    registry.emplace<StencilDrawComp>(sidePanel);
-    auto& sideLayout = registry.emplace<UILayoutComp>(sidePanel);
-    sideLayout.mode = UILayoutMode::Vertical;
+    UIBuilder sidePanel =
+        uiWorld.child("Side Panel")
+            .posAnchor(0.f, 0.2f, 0.2f, 0.6f)
+            .rect(sf::Color(40, 40, 50, 220), sf::Color(100, 100, 120), 1.f)
+            .allocatorLayout(UILayoutMode::Vertical);
 
     // Side panel items
     const char* itemNames[] = {"Panel 1", "Panel 2", "Panel 3",
                                "Panel 4", "Panel 5"};
-
     for (const char* name : itemNames) {
-        entt::entity item = registry.create();
-        set_ent_name(item, registry, name);
-        registry.emplace<PositionComp>(item, sf::Vector2f(0.f, 0.f), sidePanel);
-        registry.emplace<UIFillComp>(item);
-        registry.emplace<BoundsComp>(item, sf::FloatRect{{0.f, 0.f}, {168.f, 28.f}});
-        registry.emplace<RenderableComp>(item, z_ui + 1);
-        registry.emplace<UIRectComp>(item, sf::Color(0, 0, 0, 0),
-                                      sf::Color(120, 120, 140), 1.f);
-        auto& itemTextComp = registry.emplace<TextComp>(item,
-            sf::Text(font_map["hack"], name, 14));
-        itemTextComp.text.setFillColor(sf::Color::White);
-        sideLayout.children.push_back(item);
+        sidePanel.child(name)
+            .posFill()
+            .rect(sf::Color(0, 0, 0, 0), sf::Color(120, 120, 140), 1.f)
+            .text(name, "hack", 14)
+            .stencil();
     }
-    entt::entity spawnButton = registry.create();
-    set_ent_name(spawnButton, registry, "Spawn Button");
-    registry.emplace<PositionComp>(spawnButton, sf::Vector2f(0.f, 0.f), sidePanel);
-    registry.emplace<UIFillComp>(spawnButton);
-    registry.emplace<BoundsComp>(spawnButton);
-    registry.emplace<RenderableComp>(spawnButton, z_ui + 1);
-    registry.emplace<UIRectComp>(spawnButton, sf::Color(120, 0, 0, 128),
-                                    sf::Color(120, 120, 140), 1.f);
-    sideLayout.children.push_back(spawnButton);
-    registry.emplace<ClickListenerComp>(spawnButton);
-    registry.emplace<ButtonComp>(spawnButton, [&](ClickEvent&) {
-        auto pView = registry.view<InputMovementComp>();
-        entt::entity world;
-        for (auto [ent, mover] : pView.each()) {
-            world = Physics::getWorld(ent, registry);
-            break;
-        }
-        spawnBall(registry, world);
-    });
+
+    sidePanel.child("Spawn Button")
+        .posFill()
+        .rect(sf::Color(120, 0, 0, 128), sf::Color(120, 120, 140), 1.f)
+        .button([&](ClickEvent&) {
+            auto pView = registry.view<InputMovementComp>();
+            entt::entity world;
+            for (auto [ent, mover] : pView.each()) {
+                world = Physics::getWorld(ent, registry);
+                break;
+            }
+            spawnBall(registry, world);
+        });
 
     // --- Bottom panel: text with wrapping demo ---
-    entt::entity bottomPanel = registry.create();
-    set_ent_name(bottomPanel, registry, "Bottom Panel");
-    registry.emplace<PositionComp>(bottomPanel, sf::Vector2f(0.f, 0.f), uiWorld);
-    registry.emplace<UIAnchorComp>(bottomPanel, sf::FloatRect{{0.f, 0.f}, {1.f, 0.2f}});
-    worldAlloc.children.push_back(bottomPanel);
-    auto& bottomAlloc = registry.emplace<UIFullAllocatorComp>(bottomPanel);
-    registry.emplace<BoundsComp>(bottomPanel, sf::FloatRect{{0.f, 0.f}, {620.f, 120.f}});
-    registry.emplace<RenderableComp>(bottomPanel, z_ui);
-    registry.emplace<UIRectComp>(bottomPanel, sf::Color(25, 25, 35, 210),
-                                  sf::Color(80, 80, 100), 1.f);
-    registry.emplace<StencilDrawComp>(bottomPanel);
+    UIBuilder bottomPanel =
+        uiWorld.child("Bottom Panel")
+            .posAnchor(0.f, 0.f, 1.f, 0.2f)
+            .allocatorFull()
+            .rect(sf::Color(25, 25, 35, 210), sf::Color(80, 80, 100), 1.f);
 
-    entt::entity descText = registry.create();
-    set_ent_name(descText, registry, "Desc Text");
-    registry.emplace<PositionComp>(descText, sf::Vector2f(0.f, 0.f), bottomPanel);
-    registry.emplace<UIFillComp>(descText);
-    registry.emplace<BoundsComp>(descText, sf::FloatRect{{0.f, 0.f}, {616.f, 116.f}});
-    registry.emplace<RenderableComp>(descText, z_ui + 1);
-    auto& descTextComp = registry.emplace<TextComp>(descText,
-        sf::Text(font_map["hack"],
-                 "This is the UI system demo for proj-animals. "
+    bottomPanel.child("Desc Text")
+        .posFill()
+        .text("This is the UI system demo for proj-animals. "
                  "Text automatically wraps within the BoundsComp area "
                  "when the wrap flag is enabled. Resize the window to "
                  "see the layout system reflow elements and the text "
                  "rewrap accordingly. Stencil clipping ensures content "
-                 "stays within its panel boundaries.",
-                 14));
-    descTextComp.text.setFillColor(sf::Color(200, 200, 220));
-    bottomAlloc.children.push_back(descText);
-
-    auto rend_view = registry.view<PositionComp>();
-    for (auto [entity, pos] : rend_view.each()) {
-        if (Physics::getWorld(entity, registry) == uiWorld)
-            registry.emplace<NonSerializableComp>(entity);
-    }
+                 "stays within its panel boundaries.", "hack",
+                 14, sf::Color(200, 200, 220), true);
 }

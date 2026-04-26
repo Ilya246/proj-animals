@@ -15,7 +15,7 @@ struct PositionComp {
 
 struct PhysicsComp {
     // m/s velocity
-    sf::Vector2f velocity;
+    sf::Vector2f velocity = zeroVec;
     // m/s^2 drag
     float drag = 0.f;
 
@@ -49,8 +49,8 @@ inline CollisionLayer operator&(CollisionLayer a, CollisionLayer b) {
 
 // Lets this entity collide with other ColliderComp entities
 struct ColliderComp {
-    CollisionLayer layer;
-    CollisionLayer mask;
+    CollisionLayer layer = CollisionLayer::None;
+    CollisionLayer mask = CollisionLayer::None;
     float mass = 5.f;
     float restitution = 0.5f;
 

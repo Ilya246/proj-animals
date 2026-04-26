@@ -174,8 +174,8 @@ void UIRectComp::OnRender(RenderEvent& ev) {
     // Convert to draw-coords
     bl.y *= -1;
     tr.y *= -1;
-    sf::Vector2f drawSize(tr.x - bl.x, bl.y - tr.y);
-    sf::Vector2f drawPos(bl.x, tr.y);
+    sf::Vector2f drawSize(tr.x - bl.x - borderThickness * 2, bl.y - tr.y  - borderThickness * 2);
+    sf::Vector2f drawPos(bl.x + borderThickness, tr.y + borderThickness);
 
     sf::RectangleShape rect(drawSize);
     rect.setPosition(drawPos);

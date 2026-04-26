@@ -1,9 +1,9 @@
+#include <filesystem>
+#include <map>
 #include <SFML/Graphics.hpp>
 #include <SFML/Graphics/Rect.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <entt/entt.hpp>
-#include <filesystem>
-#include <map>
 
 #include "core/events.hpp"
 #include "graphics/components.hpp"
@@ -12,6 +12,7 @@
 #include "graphics/texture.hpp"
 #include "physics/components.hpp"
 #include "physics/system.hpp"
+#include "utility/formatters.hpp" // IWYU pragma: keep
 
 void DrawSystem::init(entt::registry& reg) {
     subscribe_global_event<UpdateEvent, &DrawSystem::update>(reg, this);
@@ -94,48 +95,36 @@ void DrawSystem::update(const UpdateEvent& ev) {
             if (auto* stencil = reg.try_get<StencilDrawComp>(entity)) {
                 sf::Vector2f pos = Physics::getWorldPos(entity, reg);
                 sf::FloatRect bounds = get_optional_bounds(entity, *stencil, reg);
-                
+
                 sf::Vector2f viewSize = view.getSize();
                 sf::Vector2f viewTL = view.getCenter() - viewSize * 0.5f;
 
                 float worldTop = pos.y + bounds.position.y + bounds.size.y;
                 float worldLeft = pos.x + bounds.position.x;
                 
-                // Draw coordinate equivalent
                 sf::Vector2f drawTL = {worldLeft, -worldTop};
 
-                // The Scissor Rect is defined purely as a viewport ratio
                 sf::FloatRect scissorRect;
                 scissorRect.position.x = (drawTL.x - viewTL.x) / viewSize.x;
                 scissorRect.position.y = (drawTL.y - viewTL.y) / viewSize.y;
                 scissorRect.size.x = bounds.size.x / viewSize.x;
                 scissorRect.size.y = bounds.size.y / viewSize.y;
-
-                // Prevent SFML assert
-                if (scissorRect.position.x < 0.f) {
-                    scissorRect.size.x += scissorRect.position.x;
-                    scissorRect.position.x = 0.f;
-                }
-                if (scissorRect.position.y < 0.f) {
-                    scissorRect.size.y += scissorRect.position.y;
-                    scissorRect.position.y = 0.f;
-                }
-                if (scissorRect.position.x + scissorRect.size.x > 1.f)
-                    scissorRect.size.x = 1.f - scissorRect.position.x;
-                if (scissorRect.position.y + scissorRect.size.y > 1.f)
-                    scissorRect.size.y = 1.f - scissorRect.position.y;
-
-                if (scissorRect.size.x > 0.f && scissorRect.size.y > 0.f) {
+                auto inters = scissorRect.findIntersection(sf::FloatRect({0.f, 0.f}, {1.f, 1.f}));
+                if (inters.has_value()) {
+                    scissorRect = *inters;
                     view.setScissor(scissorRect);
                     set_scissor = true;
                 } else {
                     view.setScissor(sf::FloatRect{{0.f, 0.f}, {0.f, 0.f}});
                     set_scissor = true;
                 }
+                window.setView(view);
             }
             raise_local_event(reg, entity, RenderEvent{entity, &reg, &window});
-            if (set_scissor)
+            if (set_scissor) {
                 view.setScissor(sf::FloatRect{{0.f, 0.f}, {1.f, 1.f}}); // Clean up mask
+                window.setView(view);
+            }
         }
     }
     window.display();

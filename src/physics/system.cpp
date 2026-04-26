@@ -134,7 +134,7 @@ void PhysicsSystem::update(const UpdateEvent& ev) {
                         intersects[2] = line_line_intersect(zeroVec, relMove, A3, A4);
                         intersects[3] = line_line_intersect(zeroVec, relMove, A4, A1);
 
-                        int best_i;
+                        int best_i = 0;
                         for (int i = 0; i < 4; ++i) {
                             LineIntersectResult& candidate = intersects[i];
                             if (candidate.t_A >= 0.f && candidate.t_B >= 0.f && candidate.t_B <= 1.f && candidate.t_A < best.t_A) {
