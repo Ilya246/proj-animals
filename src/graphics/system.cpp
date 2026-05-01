@@ -94,26 +94,25 @@ void DrawSystem::update(const UpdateEvent& ev) {
         std::sort(draw.begin(), draw.end());
         sf::View& view = reg.get<CameraComp>(cam).view;
         window.setView(view);
-
         for (auto [zLevel, entity] : draw) {
             bool cancelled = false;
-            ShouldRenderEvent shouldEv {entity, &reg, &cancelled};
+            std::optional<sf::FloatRect> stencil = std::nullopt;
+            ShouldRenderEvent shouldEv {entity, &reg, &cancelled, &stencil};
             raise_local_event(reg, entity, shouldEv);
             if (cancelled)
                 continue;
 
             bool set_scissor = false;
             bool cancel_draw = false;
-            if (auto* stencil = reg.try_get<StencilDrawComp>(entity)) {
-                sf::Vector2f pos = Physics::getWorldPos(entity, reg);
-                sf::FloatRect bounds = get_optional_bounds(entity, *stencil, reg);
 
+            if (stencil.has_value()) {
+                sf::FloatRect bounds = *stencil;
                 sf::Vector2f viewSize = view.getSize();
                 sf::Vector2f viewTL = view.getCenter() - viewSize * 0.5f;
 
-                float worldTop = pos.y + bounds.position.y + bounds.size.y;
-                float worldLeft = pos.x + bounds.position.x;
-                
+                float worldTop = bounds.position.y + bounds.size.y;
+                float worldLeft = bounds.position.x;
+
                 sf::Vector2f drawTL = {worldLeft, -worldTop};
 
                 sf::FloatRect scissorRect;
@@ -121,6 +120,7 @@ void DrawSystem::update(const UpdateEvent& ev) {
                 scissorRect.position.y = (drawTL.y - viewTL.y) / viewSize.y;
                 scissorRect.size.x = bounds.size.x / viewSize.x;
                 scissorRect.size.y = bounds.size.y / viewSize.y;
+
                 auto inters = scissorRect.findIntersection(sf::FloatRect({0.f, 0.f}, {1.f, 1.f}));
                 if (inters.has_value()) {
                     scissorRect = *inters;
@@ -131,8 +131,10 @@ void DrawSystem::update(const UpdateEvent& ev) {
                     cancel_draw = true;
                 }
             }
+
             if (!cancel_draw)
                 raise_local_event(reg, entity, RenderEvent{entity, &reg, &window});
+
             if (set_scissor) {
                 view.setScissor(sf::FloatRect{{0.f, 0.f}, {1.f, 1.f}}); // Clean up mask
                 window.setView(view);

@@ -24,15 +24,11 @@ struct UIBuilder {
         r.emplace<RenderableComp>(ent, r.get<RenderableComp>(parent).zLevel + 1);
         r.emplace<BoundsComp>(ent);
         r.emplace<NonSerializableComp>(ent);
-        r.emplace<UIHiddenComp>(ent, false);
+        r.emplace<UIComp>(ent);
 
         if (r.valid(parent)) {
-            if (auto* alloc = r.try_get<UIFullAllocatorComp>(parent)) {
-                alloc->children.push_back(ent);
-            } else if (auto* lay = r.try_get<UILayoutComp>(parent)) {
-                lay->children.push_back(ent);
-            } else {
-                r.emplace<UIFullAllocatorComp>(parent).children.push_back(ent);
+            if (auto* ui = r.try_get<UIComp>(parent)) {
+                ui->children.push_back(ent);
             }
         }
     }
@@ -60,7 +56,7 @@ struct UIBuilder {
         world.emplace<RenderableComp>(z_ui);
         world.emplace<BoundsComp>();
         world.emplace<UIFullAllocatorComp>();
-        world.emplace<UIHiddenComp>(false);
+        world.emplace<UIComp>();
 
         entt::entity cam = r.create();
         set_ent_name(cam, r, name + ": Camera");
@@ -133,11 +129,12 @@ struct UIBuilder {
     }
 
     UIBuilder& stencil() {
-        return emplace<StencilDrawComp>();
+        reg.get<UIComp>(ent).is_stencil = true;
+        return *this;
     }
 
     UIBuilder& hide() {
-        reg.get<UIHiddenComp>(ent).hidden = true;
+        reg.get<UIComp>(ent).self_hidden = true;
         return *this;
     }
 

@@ -81,12 +81,19 @@ void InputSystem::receiveClick(const GlobalClickEvent& ev) {
 
         // don't count the click if we're not being drawn
         bool nonRenderable = false;
-        ShouldRenderEvent shouldEv(entity, ev.registry, &nonRenderable);
+        std::optional<sf::FloatRect> stencil = std::nullopt;
+        ShouldRenderEvent shouldEv(entity, ev.registry, &nonRenderable, &stencil);
         raise_local_event(*ev.registry, entity, shouldEv);
+        
         if (nonRenderable || !clickMap.contains(worldEnt))
             continue;
 
         sf::Vector2f clickPos = clickMap.at(worldEnt);
+        sf::Vector2f drawClickPos = {clickPos.x, -clickPos.y};
+
+        // Ignore clicks if they fall outside our stenciled draw bounds
+        if (stencil.has_value() && !stencil->contains(drawClickPos))
+            continue;
 
         sf::FloatRect bounds = get_optional_bounds(entity, clickable, *ev.registry);
         bounds.position += worldPos;

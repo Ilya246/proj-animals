@@ -21,16 +21,23 @@ void UISystem::init(entt::registry& reg) {
     subscribe_global_event<GlobalMouseMoveEvent, &UISystem::onGlobalMouseMove>(reg, this);
     subscribe_global_event<KeyPressEvent, &UISystem::onGlobalKeyPress>(reg, this);
 
-    subscribe_local_event<UIHiddenComp, ShouldRenderEvent, &UIHiddenComp::OnTryDraw>(reg);
+    subscribe_local_event<UIComp, ShouldRenderEvent, &UIComp::OnTryDraw>(reg);
+    subscribe_local_event<UIComp, UIPropagateEvent, &UIComp::OnPropagate>(reg);
+    subscribe_local_event<UIComp, BoundsResizeEvent, &UIComp::OnResize>(reg);
+
     subscribe_local_event<UIFullAllocatorComp, BoundsResizeEvent, &UIFullAllocatorComp::OnResize>(reg);
     subscribe_local_event<UILayoutComp, BoundsResizeEvent, &UILayoutComp::OnResize>(reg);
+
     subscribe_local_event<UIFillComp, UISizeAllocatedEvent, &UIFillComp::OnAllocate>(reg);
     subscribe_local_event<UIAnchorComp, UISizeAllocatedEvent, &UIAnchorComp::OnAllocate>(reg);
     subscribe_local_event<UIAbsoluteBoundsComp, UISizeAllocatedEvent, &UIAbsoluteBoundsComp::OnAllocate>(reg);
+
     subscribe_local_event<UIRectComp, RenderEvent, &UIRectComp::OnRender>(reg);
     subscribe_local_event<UIWindowComp, RenderEvent, &UIWindowComp::OnRender>(reg);
+
     subscribe_local_event<DraggableComp, ClickEvent, &DraggableComp::OnClick>(reg);
     subscribe_local_event<ButtonComp, ClickEvent, &ButtonComp::OnClick>(reg);
+
     subscribe_local_event<TextComp, RenderEvent, &TextComp::OnRender>(reg);
     subscribe_local_event<TextComp, BoundsResizeEvent, &TextComp::OnResize>(reg);
 
@@ -100,31 +107,98 @@ void UISystem::onGlobalMouseMove(const GlobalMouseMoveEvent& ev) {
 }
 
 void UISystem::onGlobalKeyPress(const KeyPressEvent& ev) {
-    auto triggerView = ev.registry->view<ButtonToggledUIComp, UIHiddenComp>();
-    for (auto [entity, toggled, hidden] : triggerView.each()) {
+    auto triggerView = ev.registry->view<ButtonToggledUIComp, UIComp>();
+    for (auto [entity, toggled, ui] : triggerView.each()) {
         if (ev.key == toggled.triggerKey)
-            hidden.hidden = !hidden.hidden;
+            ui.set_hidden(!ui.self_hidden, *ev.registry, entity);
     }
 }
 
+
 ///
-/// Utility
+/// UI Component Methods
 ///
 
-bool any_parent_hidden(entt::entity ent, entt::registry& reg) {
-    if (auto* hidden = reg.try_get<UIHiddenComp>(ent))
-        if (hidden->hidden)
-            return true;
-
-    PositionComp& pos = reg.get<PositionComp>(ent);
-    if (pos.parent == ent)
-        return false;
-
-    return any_parent_hidden(pos.parent, reg);
+void UIComp::OnTryDraw(ShouldRenderEvent& ev) {
+    if (self_hidden || parent_hidden) {
+        *ev.cancelled = true;
+        return;
+    }
+    if (cached_stencil.has_value()) {
+        sf::Vector2f pos = Physics::getWorldPos(ev.ent, *ev.reg);
+        *ev.stencil = {cached_stencil->position + pos, cached_stencil->size};
+    }
 }
 
-void UIHiddenComp::OnTryDraw(ShouldRenderEvent& ev) {
-    *ev.cancelled = any_parent_hidden(ev.ent, *ev.reg);
+void UIComp::OnPropagate(UIPropagateEvent& ev) {
+    propagate(ev, ev.entity, *ev.registry);
+}
+
+void UIComp::OnResize(BoundsResizeEvent& ev) {
+    if (is_stencil) {
+        sf::FloatRect new_stencil = ev.newBounds;
+
+        // Intersect with parent stencil if one exists
+        if (auto* posComp = ev.registry->try_get<PositionComp>(ev.entity)) {
+            if (auto* parentUI = ev.registry->try_get<UIComp>(posComp->parent)) {
+                if (parentUI->cached_stencil.has_value()) {
+                    auto inters = new_stencil.findIntersection(*parentUI->cached_stencil);
+                    new_stencil = inters.has_value() ? *inters : sf::FloatRect{{0.f, 0.f}, {0.f, 0.f}};
+                }
+            }
+        }
+
+        assign_stencil(new_stencil, *ev.registry, ev.entity);
+    }
+}
+
+void UIComp::set_hidden(bool hide, entt::registry& reg, entt::entity ent) {
+    self_hidden = hide;
+
+    UIPropagateEvent ev {
+        &reg, ent,
+        [](entt::registry& r, entt::entity e) {
+            if (auto* ui = r.try_get<UIComp>(e)) {
+                if (auto* pos = r.try_get<PositionComp>(e)) {
+                    if (auto* parent_ui = r.try_get<UIComp>(pos->parent)) {
+                        ui->parent_hidden = parent_ui->self_hidden || parent_ui->parent_hidden;
+                    }
+                }
+            }
+        }
+    };
+
+    propagate(ev, ent, reg);
+}
+
+void UIComp::assign_stencil(std::optional<sf::FloatRect> stencil, entt::registry& reg, entt::entity ent) {
+    cached_stencil = stencil;
+
+    UIPropagateEvent ev {
+        &reg, ent,
+        [stencil](entt::registry& r, entt::entity e) {
+            if (auto* ui = r.try_get<UIComp>(e)) {
+                if (ui->is_stencil && stencil.has_value()) {
+                    // Re-intersect with our own bounds if we are also a stencil provider
+                    sf::FloatRect bounds = r.get<BoundsComp>(e).bounds;
+                    
+                    auto inters = bounds.findIntersection(*stencil);
+                    ui->cached_stencil = inters.has_value() ? *inters : sf::FloatRect{{0.f, 0.f}, {0.f, 0.f}};
+                } else {
+                    ui->cached_stencil = stencil;
+                }
+            }
+        }
+    };
+
+    propagate(ev, ent, reg);
+}
+
+void UIComp::propagate(UIPropagateEvent& propagate, entt::entity ent, entt::registry& reg) {
+    propagate.action(reg, ent);
+    for (entt::entity child : children) {
+        raise_local_event(reg, child, propagate);
+    }
 }
 
 ///
@@ -133,6 +207,8 @@ void UIHiddenComp::OnTryDraw(ShouldRenderEvent& ev) {
 
 void UIFullAllocatorComp::OnResize(BoundsResizeEvent& ev) {
     sf::FloatRect newBounds = bounds.has_value() ? apply_dynamic_bounds(ev.newBounds, *bounds) : ev.newBounds;
+
+    const std::vector<entt::entity>& children = ev.registry->get<UIComp>(ev.entity).children;
 
     for (entt::entity child : children) {
         raise_local_event(*ev.registry, child, UISizeAllocatedEvent{newBounds, ev.registry, child});
@@ -164,6 +240,8 @@ void UILayoutComp::OnResize(BoundsResizeEvent& ev) {
     const float contentHeight = contentTop - contentBottom;
 
     if (contentWidth <= 0.f || contentHeight <= 0.f) return;
+
+    const std::vector<entt::entity>& children = reg.get<UIComp>(entity).children;
 
     if (children.empty()) return;
 

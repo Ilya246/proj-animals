@@ -17,10 +17,24 @@ struct UIScreenComp {
 };
 
 // Causes us and all our children to not draw
-struct UIHiddenComp {
-    void OnTryDraw(ShouldRenderEvent&);
+struct UIComp {
+    // Whether we want to be hidden ourselves
+    bool self_hidden = false;
+    // Cache: whether our parent is hidden
+    bool parent_hidden = false;
+    // Whether to stencil child UIs within our bounds
+    bool is_stencil = false;
+    // Cached stencil in local coordinates
+    std::optional<sf::FloatRect> cached_stencil = std::nullopt;
+    std::vector<entt::entity> children;
 
-    bool hidden = true;
+    void OnTryDraw(ShouldRenderEvent&);
+    void OnPropagate(UIPropagateEvent&);
+    void OnResize(BoundsResizeEvent&);
+
+    void set_hidden(bool hide, entt::registry& reg, entt::entity ent);
+    void assign_stencil(std::optional<sf::FloatRect> stencil, entt::registry& reg, entt::entity ent);
+    void propagate(UIPropagateEvent& propagate, entt::entity ent, entt::registry& reg);
 };
 
 ///
@@ -32,7 +46,6 @@ struct UIFullAllocatorComp {
     void OnResize(BoundsResizeEvent&);
 
     std::optional<DynamicBounds> bounds = {};
-    std::vector<entt::entity> children = {};
 };
 
 enum class UILayoutMode : uint8_t {
@@ -48,7 +61,6 @@ struct UILayoutComp {
     float padding = 0.f; // inner padding around all children
     float spacing = 0.f; // gap between adjacent children
     std::optional<DynamicBounds> bounds = {};
-    std::vector<entt::entity> children = {};
 };
 
 ///

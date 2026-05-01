@@ -12,4 +12,6 @@ struct ShouldRenderEvent {
     entt::entity ent;
     entt::registry* reg;
     bool* cancelled;
+    // stencil bounds, in world coordinates
+    std::optional<sf::FloatRect>* stencil;
 };
