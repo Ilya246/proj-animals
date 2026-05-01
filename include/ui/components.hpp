@@ -1,5 +1,6 @@
 #pragma once
 #include <SFML/Graphics/Text.hpp>
+#include <SFML/Window/Keyboard.hpp>
 #include <functional>
 
 #include "entt/entity/fwd.hpp"
@@ -8,6 +9,7 @@
 #include "physics/events.hpp"
 #include "serialization/serialization.hpp"
 #include "ui/events.hpp"
+#include "utility/utility.hpp"
 
 // Automatically sizes our BoundsComp to match screen as seen by given camera
 struct UIScreenComp {
@@ -29,6 +31,7 @@ struct UIHiddenComp {
 struct UIFullAllocatorComp {
     void OnResize(BoundsResizeEvent&);
 
+    std::optional<DynamicBounds> bounds = {};
     std::vector<entt::entity> children = {};
 };
 
@@ -44,6 +47,7 @@ struct UILayoutComp {
     UILayoutMode mode = UILayoutMode::Vertical;
     float padding = 0.f; // inner padding around all children
     float spacing = 0.f; // gap between adjacent children
+    std::optional<DynamicBounds> bounds = {};
     std::vector<entt::entity> children = {};
 };
 
@@ -62,8 +66,7 @@ struct UIFillComp {
 struct UIAnchorComp {
     void OnAllocate(UISizeAllocatedEvent&);
 
-    // Ratio of parent's size to take up
-    sf::FloatRect bounds;
+    DynamicBounds bounds;
 };
 
 // Makes this UI ignore allocated space and take a fixed size
@@ -100,11 +103,9 @@ struct UIWindowComp {
 struct DraggableComp {
     void OnClick(ClickEvent&);
 
-    std::optional<sf::FloatRect> bounds = {};
+    std::optional<DynamicBounds> bounds = {};
     bool being_dragged = false;
     sf::Vector2f anchorCoords = {0.f, 0.f};
-
-    REGISTER_SERIALIZABLE(DraggableComp, Draggable)
 };
 
 // run code on click
@@ -112,6 +113,10 @@ struct ButtonComp {
     std::function<void(ClickEvent& ev)> exec;
 
     void OnClick(ClickEvent&);
+};
+
+struct ButtonToggledUIComp {
+    sf::Keyboard::Key triggerKey;
 };
 
 struct TextComp {

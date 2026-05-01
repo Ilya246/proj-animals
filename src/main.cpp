@@ -182,29 +182,16 @@ void genUI(entt::registry& registry) {
     // --- UI world root entity ---
     UIBuilder uiWorld = UIBuilder::makeWorld(registry, "UI World");
 
-    // --- Top panel: a bordered panel at the top of the screen ---
-    UIBuilder topPanel =
-        uiWorld.child("Top Panel")
-            .posAnchor(0.f, 0.8f, 1.f, 0.2f)
-            .rect(sf::Color(30, 30, 30, 200), sf::Color(100, 100, 120), 2.f)
-            .allocatorLayout(UILayoutMode::Horizontal, 0.f, 4.f);
-
-    topPanel.child("Title Text")
-        .posFill()
-        .text("Animals UI Demo", "hack", 22);
-    topPanel.child("Spacer")
-        .posFill()
-        .rect(sf::Color(100, 100, 120, 128), sf::Color(40, 40, 50), 4.f);
-    topPanel.child("Status Text")
-        .posFill()
-        .text("Status: OK", "hack", 16, sf::Color::Green);
-
     // --- Side panel: vertical list on the left ---
     UIBuilder sidePanel =
-        uiWorld.child("Side Panel")
-            .posAnchor(0.f, 0.2f, 0.2f, 0.6f)
-            .rect(sf::Color(40, 40, 50, 220), sf::Color(100, 100, 120), 1.f)
-            .allocatorLayout(UILayoutMode::Vertical);
+        uiWorld.child("Editor Panel")
+            .posAbsolute({{20.f, 100.f}, {200.f, 400.f}})
+            .window(sf::Color(35, 35, 45, 240),
+                sf::Color(130, 130, 150),
+                sf::Color(70, 70, 100), 2.f, 30.f)
+            .allocatorLayout(UILayoutMode::Vertical, 2.f, 2.f, {0.f, 0.f, 200.f, 370.f, {false, false, false, false}})
+            .buttonToggled(sf::Keyboard::Key::F3)
+            .draggable(0.f, 370.f, 200.f, 30.f, {false, false, false, false});
 
     // Side panel items
     const char* itemNames[] = {"Panel 1", "Panel 2", "Panel 3",
@@ -229,35 +216,4 @@ void genUI(entt::registry& registry) {
             }
             spawnBall(*click.registry, world);
         });
-
-    // --- Bottom panel: text with wrapping demo ---
-    UIBuilder bottomPanel =
-        uiWorld.child("Bottom Panel")
-            .posAnchor(0.f, 0.f, 1.f, 0.2f)
-            .allocatorFull()
-            .rect(sf::Color(25, 25, 35, 210), sf::Color(80, 80, 100), 1.f);
-
-    bottomPanel.child("Desc Text")
-        .posFill()
-        .text("This is the UI system demo for proj-animals. "
-                 "Text automatically wraps within the BoundsComp area "
-                 "when the wrap flag is enabled. Resize the window to "
-                 "see the layout system reflow elements and the text "
-                 "rewrap accordingly. Stencil clipping ensures content "
-                 "stays within its panel boundaries.", "hack",
-                 14, sf::Color(200, 200, 220), true);
-
-    UIBuilder dragWindow =
-        uiWorld.child("Draggable Window")
-            .posAbsolute({{300.f, 400.f}, {250.f, 150.f}})
-            .allocatorFull()
-            .window(sf::Color(35, 35, 45, 240),
-                sf::Color(130, 130, 150),
-                sf::Color(70, 70, 100), 2.f, 24.f)
-            .draggable(sf::FloatRect{{0.f, 150.f - 24.f}, {250.f, 24.f}})
-            .zIndex(z_ui + 3);
-
-    dragWindow.child("Draggable Text")
-        .posAnchor(0.05f, 0.05f, 0.9f, 0.79f)
-        .text("Drag me around by my header!\n\nPress ESC anytime to toggle my visibility.", "hack", 14, sf::Color::White, true);
 }

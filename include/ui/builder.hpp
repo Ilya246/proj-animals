@@ -75,12 +75,12 @@ struct UIBuilder {
         return UIBuilder(reg, ent, name);
     }
 
-    UIBuilder& posAnchor(const sf::FloatRect& bounds) {
+    UIBuilder& posAnchor(const DynamicBounds& bounds) {
         return emplace<UIAnchorComp>(bounds);
     }
 
-    UIBuilder& posAnchor(float pX, float pY, float sX, float sY) {
-        return posAnchor({{pX, pY}, {sX, sY}});
+    UIBuilder& posAnchor(float pX, float pY, float sX, float sY, std::array<bool, 4> fractionMode = {true, true, true, true}) {
+        return posAnchor({pX, pY, sX, sY, fractionMode});
     }
 
     UIBuilder& posFill() {
@@ -96,8 +96,8 @@ struct UIBuilder {
         return emplace<UIFullAllocatorComp>();
     }
 
-    UIBuilder& allocatorLayout(UILayoutMode mode, float padding = 0.f, float spacing = 0.f) {
-        return emplace<UILayoutComp>(mode, padding, spacing);
+    UIBuilder& allocatorLayout(UILayoutMode mode, float padding = 0.f, float spacing = 0.f, DynamicBounds bounds = {0.f, 0.f, 1.f, 1.f, {true, true, true, true}}) {
+        return emplace<UILayoutComp>(mode, padding, spacing, bounds);
     }
 
     UIBuilder& zIndex(int32_t z) {
@@ -124,8 +124,12 @@ struct UIBuilder {
         return emplace<ButtonComp>(cb).ensure<ClickListenerComp>();
     }
 
-    UIBuilder& draggable(std::optional<sf::FloatRect> bounds = {}) {
+    UIBuilder& draggable(std::optional<DynamicBounds> bounds = {}) {
         return emplace<DraggableComp>(bounds).ensure<ClickListenerComp>();
+    }
+
+    UIBuilder& draggable(float pX, float pY, float sX, float sY, std::array<bool, 4> fractionMode = {true, true, true, true}) {
+        return draggable(DynamicBounds{pX, pY, sX, sY, fractionMode});
     }
 
     UIBuilder& stencil() {
@@ -135,5 +139,9 @@ struct UIBuilder {
     UIBuilder& hide() {
         reg.get<UIHiddenComp>(ent).hidden = true;
         return *this;
+    }
+
+    UIBuilder& buttonToggled(sf::Keyboard::Key key) {
+        return emplace<ButtonToggledUIComp>(key);
     }
 };

@@ -7,6 +7,8 @@ struct UISystem : System<UISystem> {
     private:
         virtual void init(entt::registry&) override;
         virtual int initPriority() override { return -16; };
+
         void onScreenResize(const ScreenResizeEvent&);
         void onGlobalMouseMove(const GlobalMouseMoveEvent&);
+        void onGlobalKeyPress(const KeyPressEvent&);
 };

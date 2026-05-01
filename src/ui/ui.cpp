@@ -1,4 +1,5 @@
 #include <SFML/Graphics/Rect.hpp>
+#include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Mouse.hpp>
 
 #include "core/events.hpp"
@@ -18,6 +19,7 @@
 void UISystem::init(entt::registry& reg) {
     subscribe_global_event<ScreenResizeEvent, &UISystem::onScreenResize>(reg, this);
     subscribe_global_event<GlobalMouseMoveEvent, &UISystem::onGlobalMouseMove>(reg, this);
+    subscribe_global_event<KeyPressEvent, &UISystem::onGlobalKeyPress>(reg, this);
 
     subscribe_local_event<UIHiddenComp, ShouldRenderEvent, &UIHiddenComp::OnTryDraw>(reg);
     subscribe_local_event<UIFullAllocatorComp, BoundsResizeEvent, &UIFullAllocatorComp::OnResize>(reg);
@@ -97,6 +99,14 @@ void UISystem::onGlobalMouseMove(const GlobalMouseMoveEvent& ev) {
     }
 }
 
+void UISystem::onGlobalKeyPress(const KeyPressEvent& ev) {
+    auto triggerView = ev.registry->view<ButtonToggledUIComp, UIHiddenComp>();
+    for (auto [entity, toggled, hidden] : triggerView.each()) {
+        if (ev.key == toggled.triggerKey)
+            hidden.hidden = !hidden.hidden;
+    }
+}
+
 ///
 /// Utility
 ///
@@ -122,8 +132,10 @@ void UIHiddenComp::OnTryDraw(ShouldRenderEvent& ev) {
 ///
 
 void UIFullAllocatorComp::OnResize(BoundsResizeEvent& ev) {
+    sf::FloatRect newBounds = bounds.has_value() ? apply_dynamic_bounds(ev.newBounds, *bounds) : ev.newBounds;
+
     for (entt::entity child : children) {
-        raise_local_event(*ev.registry, child, UISizeAllocatedEvent{ev.newBounds, ev.registry, child});
+        raise_local_event(*ev.registry, child, UISizeAllocatedEvent{newBounds, ev.registry, child});
     }
 }
 
@@ -131,8 +143,9 @@ void UILayoutComp::OnResize(BoundsResizeEvent& ev) {
     entt::registry& reg = *ev.registry;
     entt::entity entity = ev.entity;
 
-    const sf::FloatRect area = ev.newBounds;
-    if (area.size.x <= 0.f || area.size.y <= 0.f) return;
+    sf::FloatRect newBounds = bounds.has_value() ? apply_dynamic_bounds(ev.newBounds, *bounds) : ev.newBounds;
+
+    if (newBounds.size.x <= 0.f || newBounds.size.y <= 0.f) return;
 
     // Account for UIRectComp border insets
     float borderTop = 0.f, borderBottom = 0.f;
@@ -143,10 +156,10 @@ void UILayoutComp::OnResize(BoundsResizeEvent& ev) {
     }
 
     // Content rectangle (all in local pos-coordinates, Y-up)
-    const float contentLeft   = area.position.x + borderLeft + padding;
-    const float contentBottom = area.position.y + borderBottom + padding;
-    const float contentRight  = area.position.x + area.size.x - borderRight - padding;
-    const float contentTop    = area.position.y + area.size.y - borderTop - padding;
+    const float contentLeft   = newBounds.position.x + borderLeft + padding;
+    const float contentBottom = newBounds.position.y + borderBottom + padding;
+    const float contentRight  = newBounds.position.x + newBounds.size.x - borderRight - padding;
+    const float contentTop    = newBounds.position.y + newBounds.size.y - borderTop - padding;
     const float contentWidth  = contentRight - contentLeft;
     const float contentHeight = contentTop - contentBottom;
 
@@ -202,10 +215,9 @@ void UIFillComp::OnAllocate(UISizeAllocatedEvent& ev) {
 
 void UIAnchorComp::OnAllocate(UISizeAllocatedEvent& ev) {
     sf::FloatRect alloc = ev.bounds;
-    sf::Vector2f scaledPos = {alloc.position.x + alloc.size.x * bounds.position.x, alloc.position.y + alloc.size.y * bounds.position.y};
-    sf::Vector2f scaledSize = {alloc.size.x * bounds.size.x, alloc.size.y * bounds.size.y};
-    ev.registry->get<PositionComp>(ev.entity).position = scaledPos;
-    ev.registry->get<BoundsComp>(ev.entity).resize({zeroVec, scaledSize}, ev.entity, *ev.registry);
+    sf::FloatRect scaledBounds = apply_dynamic_bounds(alloc, bounds);
+    ev.registry->get<PositionComp>(ev.entity).position = scaledBounds.position;
+    ev.registry->get<BoundsComp>(ev.entity).resize({zeroVec, scaledBounds.size}, ev.entity, *ev.registry);
 }
 
 void UIAbsoluteBoundsComp::OnAllocate(UISizeAllocatedEvent& ev) {
@@ -269,8 +281,12 @@ void UIWindowComp::OnRender(RenderEvent& ev) {
 void DraggableComp::OnClick(ClickEvent& ev) {
     bool pressed = ev.pressed;
     // check bounds
-    if (bounds && !bounds->contains(ev.relativeCoords))
-        pressed = false;
+    if (bounds) {
+        if (auto boundsComp = ev.registry->try_get<BoundsComp>(ev.ent)) {
+            sf::FloatRect scaledBounds = apply_dynamic_bounds(boundsComp->bounds, *bounds);
+            pressed &= scaledBounds.contains(ev.relativeCoords);
+        }
+    }
 
     being_dragged = pressed;
     anchorCoords = ev.relativeCoords;
