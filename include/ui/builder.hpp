@@ -6,7 +6,7 @@
 #include "physics/components.hpp"
 #include "core/components.hpp"
 #include "ui/font.hpp"
-#include "utility/utility.hpp"
+#include "utility/constants.hpp"
 #include <SFML/Graphics/Rect.hpp>
 #include <entt/entt.hpp>
 #include <string>
@@ -129,12 +129,12 @@ struct UIBuilder {
     }
 
     UIBuilder& stencil() {
-        reg.get<UIComp>(ent).is_stencil = true;
+        reg.get<UIComp>(ent).isStencil = true;
         return *this;
     }
 
     UIBuilder& hide() {
-        reg.get<UIComp>(ent).self_hidden = true;
+        reg.get<UIComp>(ent).selfHidden = true;
         return *this;
     }
 

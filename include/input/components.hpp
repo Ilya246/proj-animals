@@ -22,3 +22,9 @@ struct ClickListenerComp {
 
     REGISTER_SERIALIZABLE(ClickListenerComp, ClickListener)
 };
+
+struct ScrollListenerComp {
+    std::optional<sf::FloatRect> bounds = {};
+
+    REGISTER_SERIALIZABLE(ScrollListenerComp, ScrollListener)
+};

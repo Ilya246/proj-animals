@@ -11,6 +11,7 @@ struct InputSystem : System<InputSystem> {
 
         void update(const UpdateEvent&);
         void receiveClick(const GlobalClickEvent&);
+        void receiveScroll(const GlobalScrollEvent&);
 };
 
 namespace Input {

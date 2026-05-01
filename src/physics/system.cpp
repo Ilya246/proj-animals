@@ -6,7 +6,6 @@
 #include "entt/entity/fwd.hpp"
 #include "physics/components.hpp"
 #include "physics/events.hpp"
-#include "utility/utility.hpp"
 #include "physics/system.hpp"
 
 void PhysicsSystem::init(entt::registry& reg) {

@@ -1,4 +1,5 @@
 #include <entt/entt.hpp>
+#include <functional>
 
 #include "core/events.hpp"
 #include "graphics/components.hpp"
@@ -7,13 +8,13 @@
 #include "physics/components.hpp"
 #include "physics/events.hpp"
 #include "physics/system.hpp"
-#include "utility/utility.hpp"
 #include "input/system.hpp"
 #include "world/components.hpp"
 
 void InputSystem::init(entt::registry& reg) {
     subscribe_global_event<UpdateEvent, &InputSystem::update>(reg, this);
     subscribe_global_event<GlobalClickEvent, &InputSystem::receiveClick>(reg, this);
+    subscribe_global_event<GlobalScrollEvent, &InputSystem::receiveScroll>(reg, this);
     subscribe_local_event<InputMovementComp, GetDragEvent, &InputMovementComp::OnGetDrag>(reg);
 }
 
@@ -66,40 +67,53 @@ namespace Input {
     }
 }
 
-void InputSystem::receiveClick(const GlobalClickEvent& ev) {
+template<typename TGEv, typename TEv, typename LComp>
+void handle_mouse_event(const TGEv& ev, std::function<TEv(sf::Vector2f, sf::Vector2f, entt::entity)> ev_fun) {
     std::map<entt::entity, sf::Vector2f> clickMap;
-    auto camView = ev.registry->view<CameraComp>();
-    for (auto [entity, cam] : camView.each()) {
+    auto camView = ev.registry->template view<CameraComp>();
+    for (auto[entity, cam] : camView.each()) {
         auto worldEnt = Physics::getWorld(entity, *ev.registry);
         sf::Vector2f coords = Input::get_cam_mouse_pos(ev.pixelCoords, entity, *ev.registry);
         clickMap[worldEnt] = coords;
     }
 
-    auto clickableView = ev.registry->view<ClickListenerComp, PositionComp>();
-    for (auto [entity, clickable, position] : clickableView.each()) {
-        auto [worldEnt, worldPos] = Physics::getWorldAndPos(entity, *ev.registry);
+    auto scrollableView = ev.registry->template view<LComp, PositionComp>();
+    for (auto [entity, lcomp, position] : scrollableView.each()) {
+        auto[worldEnt, worldPos] = Physics::getWorldAndPos(entity, *ev.registry);
 
-        // don't count the click if we're not being drawn
         bool nonRenderable = false;
         std::optional<sf::FloatRect> stencil = std::nullopt;
-        ShouldRenderEvent shouldEv(entity, ev.registry, &nonRenderable, &stencil);
+        ShouldRenderEvent shouldEv{entity, ev.registry, &nonRenderable, &stencil};
         raise_local_event(*ev.registry, entity, shouldEv);
-        
+
         if (nonRenderable || !clickMap.contains(worldEnt))
             continue;
 
         sf::Vector2f clickPos = clickMap.at(worldEnt);
         sf::Vector2f drawClickPos = {clickPos.x, -clickPos.y};
 
-        // Ignore clicks if they fall outside our stenciled draw bounds
         if (stencil.has_value() && !stencil->contains(drawClickPos))
             continue;
 
-        sf::FloatRect bounds = get_optional_bounds(entity, clickable, *ev.registry);
+        sf::FloatRect bounds = get_optional_bounds(entity, lcomp, *ev.registry);
         bounds.position += worldPos;
         if (bounds.contains(clickPos))
-            raise_local_event(*ev.registry, entity, ClickEvent{ev.pixelCoords, clickPos - worldPos, clickPos, ev.button, entity, ev.pressed, ev.registry});
+            raise_local_event(*ev.registry, entity, ev_fun(clickPos - worldPos, clickPos, entity));
     }
+}
+
+void InputSystem::receiveClick(const GlobalClickEvent& ev) {
+    handle_mouse_event<GlobalClickEvent, ClickEvent, ClickListenerComp>(ev,
+        [&ev](sf::Vector2f relPos, sf::Vector2f globalPos, entt::entity ent) {
+            return ClickEvent{ev.pixelCoords, relPos, globalPos, ev.button, ent, ev.pressed, ev.registry};
+        });
+}
+
+void InputSystem::receiveScroll(const GlobalScrollEvent& ev) {
+    handle_mouse_event<GlobalScrollEvent, ScrollEvent, ScrollListenerComp>(ev,
+        [&ev](sf::Vector2f relPos, sf::Vector2f globalPos, entt::entity ent) {
+            return ScrollEvent{ev.pixelCoords, relPos, globalPos, ev.delta, ent, ev.registry};
+        });
 }
 
 // no drag

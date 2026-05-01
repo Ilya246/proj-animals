@@ -22,6 +22,21 @@ struct ClickEvent {
     entt::registry* registry;
 };
 
+struct GlobalScrollEvent {
+    sf::Vector2i pixelCoords;
+    float delta;
+    entt::registry* registry;
+};
+
+struct ScrollEvent {
+    sf::Vector2i pixelCoords;
+    sf::Vector2f relativeCoords;
+    sf::Vector2f worldCoords;
+    float delta;
+    entt::entity ent;
+    entt::registry* registry;
+};
+
 struct GlobalMouseMoveEvent {
     sf::Vector2i pixelCoords;
     entt::registry* registry;

@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include "entt/entity/fwd.hpp"
 #include "serialization/serialization.hpp"
+#include "utility/constants.hpp"
 
 struct PositionComp {
     sf::Vector2f position;
