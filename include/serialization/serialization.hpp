@@ -1,4 +1,5 @@
 #pragma once
+#include <rfl/UnderlyingEnums.hpp>
 #include <rfl/yaml.hpp>
 #include <yaml-cpp/yaml.h>
 #include <entt/entt.hpp>
@@ -7,8 +8,8 @@
 #include <string>
 #include <cassert>
 
-#include "serialization_entt.hpp"
-#include "serialization_sfml.hpp"
+#include "serialization_entt.hpp" // IWYU pragma: keep
+#include "serialization_sfml.hpp" // IWYU pragma: keep
 
 struct NonSerializableComp {
     bool dummy; // entt can't have empty comps
@@ -29,19 +30,21 @@ struct ComponentSerializer {
     static bool register_component(const std::string& name) {
         Registry& registry = get_registry();
 
-        registry.deserialize[name] = [](const YAML::Node& node, entt::entity e, entt::registry* r) {
-            auto result = rfl::yaml::read<T>(node);
+        registry.deserialize[name] = [name](const YAML::Node& node, entt::entity e, entt::registry* r) {
+            auto result = rfl::yaml::read<T, rfl::UnderlyingEnums>(node);
             if (result) {
                 r->emplace<T>(e, std::move(*result));
                 if constexpr (HasPostDeserializeExec<T>) {
                     PostDeserialize<T>::exec(e, r->get<T>(e), r);
                 }
+            } else {
+                std::cout << std::format("Failed deserialization of component {} to entity {}", name, (int)e) << std::endl;
             }
         };
 
         registry.serialize[name] = [](entt::registry& r, entt::entity e) -> std::optional<YAML::Node> {
             if (T* comp = r.try_get<T>(e)) {
-                return YAML::Load(rfl::yaml::write(*comp));
+                return YAML::Load(rfl::yaml::write<rfl::UnderlyingEnums>(*comp));
             }
             return {};
         };
@@ -90,5 +93,7 @@ YAML::Node serialize_entity(entt::registry& reg, entt::entity e);
 YAML::Node serialize_registry(entt::registry& reg);
 
 void deserialize_entity(const YAML::Node& node, entt::registry& reg);
+
+void deserialize_entity(const YAML::Node& node, entt::registry& reg, entt::entity into);
 
 void deserialize_registry(const YAML::Node& root, entt::registry& reg);
