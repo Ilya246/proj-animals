@@ -117,3 +117,48 @@ void TextComp::OnRender(RenderEvent& ev) {
     text.setPosition(pos);
     ev.window->draw(text);
 }
+
+void UIScrollAreaComp::OnRender(RenderEvent& ev) {
+    const UIComp& ui = ev.reg->get<UIComp>(ev.ent);
+    if (!ui.allocatedBounds || !ui.isStencil || !ui._cachedStencil)
+        return;
+
+    const BoundsComp& boundsComp = ev.reg->get<BoundsComp>(ev.ent);
+    sf::FloatRect totalBounds = apply_dynamic_bounds(boundsComp.bounds, bounds);
+
+    sf::FloatRect availableBounds = *ui._cachedStencil;
+    sf::FloatRect allocatedBounds = *ui.allocatedBounds;
+
+    // ratio represents the height of our scrollbar relative to the total allocated height,
+    // so we can scroll up until y + ratio = 1, or y = 1 - ratio
+    float ratio = availableBounds.size.y / allocatedBounds.size.y;
+    float scrollMaxY = 1.f - ratio;
+    float scrollPosMax = allocatedBounds.size.y - availableBounds.size.y;
+    float scrollFraction = 1.f - scrollPos / scrollPosMax;
+
+    sf::Vector2f worldPos = Physics::getWorldPos(ev.ent, *ev.reg);
+    sf::Vector2f outlineVec {outlineThickness, outlineThickness};
+    sf::FloatRect innerBounds = {totalBounds.position + outlineVec, totalBounds.size - outlineVec * 2.f};
+
+    sf::Vector2f rectPos = innerBounds.position + worldPos;
+    rectPos.y *= -1.f;
+    sf::Vector2f rectSize = innerBounds.size;
+    rectSize.y *= -1.f;
+    sf::RectangleShape rect(rectSize);
+    rect.setPosition(rectPos);
+    rect.setFillColor(innerColor);
+    rect.setOutlineColor(outlineColor);
+    rect.setOutlineThickness(outlineThickness);
+    ev.window->draw(rect);
+
+    float scrollY = scrollMaxY * innerBounds.size.y * scrollFraction;
+    float scrollSizeY = innerBounds.size.y * ratio;
+    sf::Vector2f scrollSize = {innerBounds.size.x, -scrollSizeY};
+    sf::Vector2f barPos = sf::Vector2f{innerBounds.position.x, scrollY} + worldPos;
+    barPos.y *= -1.f;
+    sf::RectangleShape bar(scrollSize);
+    bar.setPosition(barPos);
+    bar.setFillColor(barColor);
+    bar.setOutlineThickness(0.f);
+    ev.window->draw(bar);
+}

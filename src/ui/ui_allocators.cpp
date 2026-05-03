@@ -1,8 +1,11 @@
+#include <algorithm>
+#include <SFML/Graphics/Rect.hpp>
 #include "core/events.hpp"
+#include "physics/components.hpp"
 #include "ui/components.hpp"
 
 void UIFullAllocatorComp::OnResize(BoundsResizeEvent& ev) {
-    sf::FloatRect newBounds = bounds.has_value() ? apply_dynamic_bounds(ev.newBounds, *bounds) : ev.newBounds;
+    sf::FloatRect newBounds = apply_dynamic_bounds(ev.newBounds, bounds);
 
     UIComp& ui = ev.registry->get<UIComp>(ev.entity);
     ui.allocatedBounds = newBounds;
@@ -18,7 +21,7 @@ void UILayoutComp::OnResize(BoundsResizeEvent& ev) {
     entt::registry& reg = *ev.registry;
     entt::entity entity = ev.entity;
 
-    sf::FloatRect newBounds = bounds.has_value() ? apply_dynamic_bounds(ev.newBounds, *bounds) : ev.newBounds;
+    sf::FloatRect newBounds = apply_dynamic_bounds(ev.newBounds, bounds);
 
     if (newBounds.size.x <= 0.f || newBounds.size.y <= 0.f) return;
 
@@ -88,7 +91,7 @@ void UITileLayoutComp::OnResize(BoundsResizeEvent& ev) {
     entt::registry& reg = *ev.registry;
     entt::entity entity = ev.entity;
 
-    sf::FloatRect newBounds = bounds.has_value() ? apply_dynamic_bounds(ev.newBounds, *bounds) : ev.newBounds;
+    sf::FloatRect newBounds = apply_dynamic_bounds(ev.newBounds, bounds);
     if (newBounds.size.x <= 0.f || newBounds.size.y <= 0.f) return;
 
     float borderTop = 0.f, borderBottom = 0.f;
@@ -137,9 +140,22 @@ void UITileLayoutComp::OnResize(BoundsResizeEvent& ev) {
         maxX = std::max(maxX, cursorX);
     }
 
-    ui.allocatedBounds = {{contentLeft, minY}, {maxX + tileSize.x, contentTop - minY}};
+    ui.allocatedBounds = {{contentLeft, minY}, {maxX + tileSize.x - contentLeft, contentTop - minY}};
 }
 
-void UIScrollAreaComp::OnScroll(ScrollEvent&) {
+void UIScrollAreaComp::OnScroll(ScrollEvent& ev) {
+    UIComp& ui = ev.registry->get<UIComp>(ev.ent);
+    if (!ui.allocatedBounds || !ui.isStencil || !ui._cachedStencil)
+        return;
 
+    sf::FloatRect availableBounds = *ui._cachedStencil;
+    sf::FloatRect allocatedBounds = *ui.allocatedBounds;
+
+    float scrollMaxY = allocatedBounds.size.y - availableBounds.size.y;
+
+    scrollPos = std::clamp(scrollPos - ev.delta * scrollMul, 0.f, scrollMaxY);
+
+    ui.childOffset.y = scrollPos;
+    BoundsComp bounds = ev.registry->get<BoundsComp>(ev.ent);
+    bounds.resize(bounds.bounds, ev.ent, *ev.registry);
 }

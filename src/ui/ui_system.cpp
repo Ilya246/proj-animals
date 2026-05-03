@@ -18,14 +18,15 @@ void UISystem::init(entt::registry& reg) {
     subscribe_local_event<UILayoutComp, BoundsResizeEvent, &UILayoutComp::OnResize>(reg);
     subscribe_local_event<UITileLayoutComp, BoundsResizeEvent, &UITileLayoutComp::OnResize>(reg);
 
-    subscribe_local_event<UIScrollAreaComp, ScrollEvent, &UIScrollAreaComp::OnScroll>(reg);
-
     subscribe_local_event<UIFillComp, UISizeAllocatedEvent, &UIFillComp::OnAllocate>(reg);
     subscribe_local_event<UIAnchorComp, UISizeAllocatedEvent, &UIAnchorComp::OnAllocate>(reg);
     subscribe_local_event<UIAbsoluteBoundsComp, UISizeAllocatedEvent, &UIAbsoluteBoundsComp::OnAllocate>(reg);
 
     subscribe_local_event<UIRectComp, RenderEvent, &UIRectComp::OnRender>(reg);
     subscribe_local_event<UIWindowComp, RenderEvent, &UIWindowComp::OnRender>(reg);
+
+    subscribe_local_event<UIScrollAreaComp, RenderEvent, &UIScrollAreaComp::OnRender>(reg);
+    subscribe_local_event<UIScrollAreaComp, ScrollEvent, &UIScrollAreaComp::OnScroll>(reg);
 
     subscribe_local_event<DraggableComp, ClickEvent, &DraggableComp::OnClick>(reg);
     subscribe_local_event<ButtonComp, ClickEvent, &ButtonComp::OnClick>(reg);
@@ -60,11 +61,11 @@ void UISystem::onScreenResize(const ScreenResizeEvent& ev) {
 
         float scale = (cam->scale > 0.f) ? cam->scale : 1.f;
         sf::Vector2f viewSize{
-            static_cast<float>(ev.width) / scale,
-            static_cast<float>(ev.height) / scale
+            (float)ev.width / scale,
+            (float)ev.height / scale
         };
 
-        // Update root bounds (fires BoundsResizeEvent → layout / text reflow)
+        // Update root bounds (fires BoundsResizeEvent)
         bounds->resize(sf::FloatRect{{0.f, 0.f}, viewSize}, entity, reg);
 
         // Reposition the camera to the centre of the UI area

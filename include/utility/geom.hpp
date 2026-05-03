@@ -7,6 +7,9 @@ struct DynamicBounds {
     std::array<bool, 4> isFraction; // TODO: serializable
 
     DynamicBounds(float pX, float pY, float sX, float sY, std::array<bool, 4> fractionMode);
+
+    static DynamicBounds full;
+    static DynamicBounds none;
 };
 
 // Applies adaptive bounds "bounds" onto base bounds "onto"

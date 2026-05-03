@@ -9,6 +9,7 @@
 #include <SFML/Window/WindowEnums.hpp>
 #include "core/events.hpp"
 #include "core/system.hpp"
+#include "editor/components.hpp"
 #include "graphics/components.hpp"
 #include "graphics/texture.hpp"
 #include "input/components.hpp"
@@ -62,7 +63,7 @@ int main() {
         // Delta time
         const float dt = clock.restart().asSeconds();
 
-        // Event handling (using SFML 3's std::optional style)
+        // Event handling
         while (const std::optional event = window.pollEvent()) {
             if (event->is<sf::Event::Closed>()) {
                 window.close();
@@ -78,9 +79,15 @@ int main() {
                 dispatcher.trigger(clickEv);
                 continue;
             }
+            if (auto* wheelEv = event->getIf<sf::Event::MouseWheelScrolled>()) {
+                GlobalScrollEvent scrollEv(wheelEv->position, wheelEv->delta, &registry);
+                dispatcher.trigger(scrollEv);
+                continue;
+            }
             if (auto* moveEv = event->getIf<sf::Event::MouseMoved>()) {
                 GlobalMouseMoveEvent mouseEv(moveEv->position, &registry);
                 dispatcher.trigger(mouseEv);
+                continue;
             }
             if (auto* resizeEv = event->getIf<sf::Event::Resized>()) {
                 ScreenResizeEvent screenEv{resizeEv->size.x, resizeEv->size.y, &registry};
@@ -170,6 +177,7 @@ void genWorld(entt::registry& registry) {
     const auto camera = registry.create();
     registry.emplace<PositionComp>(camera, sf::Vector2f(0.f, 0.f), player);
     registry.emplace<CameraComp>(camera, 1.f, 0);
+    registry.emplace<MainCameraComp>(camera);
 
     // Create several ball entities with random positions/velocities
     constexpr std::size_t ballCount = 10;
@@ -179,24 +187,23 @@ void genWorld(entt::registry& registry) {
 }
 
 void genUI(entt::registry& registry) {
-    // --- UI world root entity ---
     UIBuilder uiWorld = UIBuilder::makeWorld(registry, "UI World");
 
-    // --- Side panel: vertical list on the left ---
     UIBuilder sidePanel =
-        uiWorld.child("Editor Panel")
+        uiWorld.child("Test Panel")
             .posAbsolute({{20.f, 100.f}, {200.f, 400.f}})
-            .window(sf::Color(35, 35, 45, 240),
-                sf::Color(130, 130, 150),
+            .window(sf::Color(35, 35, 45, 155),
+                sf::Color(130, 130, 200),
                 sf::Color(70, 70, 100), 2.f, 30.f)
-            .allocatorLayout(UILayoutMode::Vertical, 2.f, 2.f, {0.f, 0.f, 200.f, 370.f, {false, false, false, false}})
+            .allocatorTile({48.f, 48.f}, 2.f, 2.f, {0.f, 0.f, 180.f, 370.f, {false, false, false, false}})
             .buttonToggled(sf::Keyboard::Key::F3)
-            .draggable(0.f, 370.f, 200.f, 30.f, {false, false, false, false});
+            .scrollable({180.f, 0.f, 20.f, 370.f, {false, false, false, false}}, sf::Color(140, 140, 150, 128), sf::Color(100, 100, 110, 196), sf::Color(0, 0, 0))
+            .draggable(0.f, 370.f, 200.f, 30.f, {false, false, false, false})
+            .stencil({2.f, 2.f, 176.f, 366.f, {false, false, false, false}});
 
     // Side panel items
-    const char* itemNames[] = {"Panel 1", "Panel 2", "Panel 3",
-                               "Panel 4", "Panel 5"};
-    for (const char* name : itemNames) {
+    for (int i = 0; i < 50; ++i) {
+        std::string name = "Panel " + std::to_string(i);
         sidePanel.child(name)
             .posFill()
             .rect(sf::Color(0, 0, 0, 0), sf::Color(120, 120, 140), 1.f)

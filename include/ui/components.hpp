@@ -23,9 +23,11 @@ struct UIComp {
     bool selfHidden = false;
     // Whether to stencil child UIs within our bounds
     bool isStencil = false;
+    DynamicBounds stencilArea = DynamicBounds::full;
+
     std::vector<entt::entity> children;
     // Cached stencil in local coordinates
-    std::optional<sf::FloatRect> _cachedStencil = std::nullopt;
+    std::optional<sf::FloatRect> _cachedStencil = {};
     // Cache: whether our parent is hidden
     bool _parentHidden = false;
 
@@ -52,7 +54,7 @@ struct UIComp {
 struct UIFullAllocatorComp {
     void OnResize(BoundsResizeEvent&);
 
-    std::optional<DynamicBounds> bounds = {};
+    DynamicBounds bounds = DynamicBounds::full;
 };
 
 // Layout modes for UILayoutComp and similar.
@@ -68,7 +70,7 @@ struct UILayoutComp {
     UILayoutMode mode = UILayoutMode::Vertical;
     float padding = 0.f; // inner padding around all children
     float spacing = 0.f; // gap between adjacent children
-    std::optional<DynamicBounds> bounds = {};
+    DynamicBounds bounds = DynamicBounds::full;
 };
 
 // Lays out child entities in tiled rows.
@@ -78,18 +80,26 @@ struct UITileLayoutComp {
     sf::Vector2f tileSize;
     float padding = 0.f;
     float spacing = 0.f;
-    std::optional<DynamicBounds> bounds = {};
+    DynamicBounds bounds = DynamicBounds::full;
 };
 
 ///
 /// Modifiers
 ///
 
-// Grants this UI a scrollbar. Usable if not all of our children can fit into bounds.
+// Grants this UI a scrollbar. Usable if not all of our children can fit into bounds and we have a stencil (otherwise a scrollbar does not make sense).
 struct UIScrollAreaComp {
-    float scrollFraction = 1.f; // 1.f = top, 0.f = bottom
+    DynamicBounds bounds; // Bounds to render the scrollbar in.
+    sf::Color innerColor = sf::Color::Blue; // Color of the area our scrollbar moves in.
+    sf::Color outlineColor = sf::Color::White; // Outline color of that same area.
+    sf::Color barColor = sf::Color::Black; // Color of the scrollbar itself.
+    float outlineThickness = 1.f;
+
+    float scrollMul = 25.f;
+    float scrollPos = 0.f; // 0.f = top, Y-down
 
     void OnScroll(ScrollEvent&);
+    void OnRender(RenderEvent&);
 };
 
 ///

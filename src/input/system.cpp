@@ -67,7 +67,8 @@ namespace Input {
     }
 }
 
-template<typename TGEv, typename TEv, typename LComp>
+// Raises TEv on entities intersecting with LComp with the mouse upon TGEv being fired
+template<typename TEv, typename LComp, typename TGEv>
 void handle_mouse_event(const TGEv& ev, std::function<TEv(sf::Vector2f, sf::Vector2f, entt::entity)> ev_fun) {
     std::map<entt::entity, sf::Vector2f> clickMap;
     auto camView = ev.registry->template view<CameraComp>();
@@ -90,9 +91,8 @@ void handle_mouse_event(const TGEv& ev, std::function<TEv(sf::Vector2f, sf::Vect
             continue;
 
         sf::Vector2f clickPos = clickMap.at(worldEnt);
-        sf::Vector2f drawClickPos = {clickPos.x, -clickPos.y};
 
-        if (stencil.has_value() && !stencil->contains(drawClickPos))
+        if (stencil.has_value() && !stencil->contains(clickPos))
             continue;
 
         sf::FloatRect bounds = get_optional_bounds(entity, lcomp, *ev.registry);
@@ -103,14 +103,14 @@ void handle_mouse_event(const TGEv& ev, std::function<TEv(sf::Vector2f, sf::Vect
 }
 
 void InputSystem::receiveClick(const GlobalClickEvent& ev) {
-    handle_mouse_event<GlobalClickEvent, ClickEvent, ClickListenerComp>(ev,
+    handle_mouse_event<ClickEvent, ClickListenerComp>(ev,
         [&ev](sf::Vector2f relPos, sf::Vector2f globalPos, entt::entity ent) {
             return ClickEvent{ev.pixelCoords, relPos, globalPos, ev.button, ent, ev.pressed, ev.registry};
         });
 }
 
 void InputSystem::receiveScroll(const GlobalScrollEvent& ev) {
-    handle_mouse_event<GlobalScrollEvent, ScrollEvent, ScrollListenerComp>(ev,
+    handle_mouse_event<ScrollEvent, ScrollListenerComp>(ev,
         [&ev](sf::Vector2f relPos, sf::Vector2f globalPos, entt::entity ent) {
             return ScrollEvent{ev.pixelCoords, relPos, globalPos, ev.delta, ent, ev.registry};
         });

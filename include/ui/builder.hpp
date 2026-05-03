@@ -7,6 +7,7 @@
 #include "core/components.hpp"
 #include "ui/font.hpp"
 #include "utility/constants.hpp"
+#include "utility/geom.hpp"
 #include <SFML/Graphics/Rect.hpp>
 #include <entt/entt.hpp>
 #include <string>
@@ -92,8 +93,16 @@ struct UIBuilder {
         return emplace<UIFullAllocatorComp>();
     }
 
-    UIBuilder& allocatorLayout(UILayoutMode mode, float padding = 0.f, float spacing = 0.f, DynamicBounds bounds = {0.f, 0.f, 1.f, 1.f, {true, true, true, true}}) {
+    UIBuilder& allocatorLayout(UILayoutMode mode, float padding = 0.f, float spacing = 0.f, DynamicBounds bounds = DynamicBounds::full) {
         return emplace<UILayoutComp>(mode, padding, spacing, bounds);
+    }
+
+    UIBuilder& allocatorTile(sf::Vector2f tileSize, float padding = 0.f, float spacing = 0.f, DynamicBounds bounds = DynamicBounds::full) {
+        return emplace<UITileLayoutComp>(tileSize, padding, spacing, bounds);
+    }
+
+    UIBuilder& scrollable(DynamicBounds bounds, sf::Color innerColor, sf::Color outlineColor, sf::Color barColor, float outlineThickness = 2.f, float scrollMul = 25.f) {
+        return emplace<UIScrollAreaComp>(bounds, innerColor, outlineColor, barColor, outlineThickness, scrollMul).ensure<ScrollListenerComp>();
     }
 
     UIBuilder& zIndex(int32_t z) {
@@ -128,8 +137,10 @@ struct UIBuilder {
         return draggable(DynamicBounds{pX, pY, sX, sY, fractionMode});
     }
 
-    UIBuilder& stencil() {
-        reg.get<UIComp>(ent).isStencil = true;
+    UIBuilder& stencil(DynamicBounds area = DynamicBounds::full) {
+        UIComp& ui = reg.get<UIComp>(ent);
+        ui.isStencil = true;
+        ui.stencilArea = area;
         return *this;
     }
 

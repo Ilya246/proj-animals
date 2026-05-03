@@ -19,3 +19,11 @@ struct std::formatter<sf::Rect<TRect>> : std::formatter<string_view> {
         return std::formatter<string_view>::format(temp, ctx);
     }
 };
+
+template<typename TOpt>
+struct std::formatter<std::optional<TOpt>> : std::formatter<string_view> {
+    auto format(const std::optional<TOpt>& obj, std::format_context& ctx) const {
+        std::string temp = obj.has_value() ? std::format("{}", *obj) : "<no value>";
+        return std::formatter<string_view>::format(temp, ctx);
+    }
+};

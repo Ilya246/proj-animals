@@ -5,6 +5,9 @@ DynamicBounds::DynamicBounds(float pX, float pY, float sX, float sY, std::array<
     isFraction = fractionMode;
 }
 
+DynamicBounds DynamicBounds::full = {0.f, 0.f, 1.f, 1.f, {true, true, true, true}};
+DynamicBounds DynamicBounds::none = {0.f, 0.f, 0.f, 0.f, {false, false, false, false}};
+
 sf::FloatRect apply_dynamic_bounds(const sf::FloatRect& onto, const DynamicBounds& bounds) {
     sf::Vector2f basePos = onto.position;
     sf::Vector2f baseSize = onto.size;
