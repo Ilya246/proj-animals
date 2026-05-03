@@ -1,3 +1,4 @@
+#include <SFML/System/Vector2.hpp>
 #include <entt/entt.hpp>
 #include <functional>
 
@@ -69,7 +70,7 @@ namespace Input {
 
 // Raises TEv on entities intersecting with LComp with the mouse upon TGEv being fired
 template<typename TEv, typename LComp, typename TGEv>
-void handle_mouse_event(const TGEv& ev, std::function<TEv(sf::Vector2f, sf::Vector2f, entt::entity)> ev_fun) {
+void handle_mouse_event(const TGEv& ev, std::function<TEv(sf::Vector2f, sf::Vector2f, entt::entity, bool*)> ev_fun) {
     std::map<entt::entity, sf::Vector2f> clickMap;
     auto camView = ev.registry->template view<CameraComp>();
     for (auto[entity, cam] : camView.each()) {
@@ -78,6 +79,13 @@ void handle_mouse_event(const TGEv& ev, std::function<TEv(sf::Vector2f, sf::Vect
         clickMap[worldEnt] = coords;
     }
 
+    struct clickCandidate {
+        entt::entity ent;
+        sf::Vector2f clickPos;
+        sf::Vector2f worldPos;
+    };
+
+    std::map<int32_t, clickCandidate, std::greater<>> candidates;
     auto scrollableView = ev.registry->template view<LComp, PositionComp>();
     for (auto [entity, lcomp, position] : scrollableView.each()) {
         auto[worldEnt, worldPos] = Physics::getWorldAndPos(entity, *ev.registry);
@@ -97,22 +105,31 @@ void handle_mouse_event(const TGEv& ev, std::function<TEv(sf::Vector2f, sf::Vect
 
         sf::FloatRect bounds = get_optional_bounds(entity, lcomp, *ev.registry);
         bounds.position += worldPos;
-        if (bounds.contains(clickPos))
-            raise_local_event(*ev.registry, entity, ev_fun(clickPos - worldPos, clickPos, entity));
+        if (bounds.contains(clickPos)) {
+            int32_t zLevel = ev.registry->template get<RenderableComp>(entity).zLevel;
+            candidates[zLevel] = {entity, clickPos, worldPos};
+        }
+    }
+
+    for (auto [z, cand] : candidates) {
+        bool handled = false;
+        raise_local_event(*ev.registry, cand.ent, ev_fun(cand.clickPos - cand.worldPos, cand.clickPos, cand.ent, &handled));
+        if (handled)
+            break;
     }
 }
 
 void InputSystem::receiveClick(const GlobalClickEvent& ev) {
     handle_mouse_event<ClickEvent, ClickListenerComp>(ev,
-        [&ev](sf::Vector2f relPos, sf::Vector2f globalPos, entt::entity ent) {
-            return ClickEvent{ev.pixelCoords, relPos, globalPos, ev.button, ent, ev.pressed, ev.registry};
+        [&ev](sf::Vector2f relPos, sf::Vector2f globalPos, entt::entity ent, bool* handled) {
+            return ClickEvent{ev.pixelCoords, relPos, globalPos, ev.button, ent, ev.pressed, ev.registry, handled};
         });
 }
 
 void InputSystem::receiveScroll(const GlobalScrollEvent& ev) {
     handle_mouse_event<ScrollEvent, ScrollListenerComp>(ev,
-        [&ev](sf::Vector2f relPos, sf::Vector2f globalPos, entt::entity ent) {
-            return ScrollEvent{ev.pixelCoords, relPos, globalPos, ev.delta, ent, ev.registry};
+        [&ev](sf::Vector2f relPos, sf::Vector2f globalPos, entt::entity ent, bool* handled) {
+            return ScrollEvent{ev.pixelCoords, relPos, globalPos, ev.delta, ent, ev.registry, handled};
         });
 }
 

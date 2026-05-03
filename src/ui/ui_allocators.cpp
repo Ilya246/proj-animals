@@ -158,4 +158,5 @@ void UIScrollAreaComp::OnScroll(ScrollEvent& ev) {
     ui.childOffset.y = scrollPos;
     BoundsComp bounds = ev.registry->get<BoundsComp>(ev.ent);
     bounds.resize(bounds.bounds, ev.ent, *ev.registry);
+    *ev.handled = true;
 }

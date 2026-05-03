@@ -64,10 +64,12 @@ void DraggableComp::OnClick(ClickEvent& ev) {
 
     being_dragged = pressed;
     anchorCoords = ev.relativeCoords;
+    *ev.handled = true;
 }
 
 void ButtonComp::OnClick(ClickEvent& ev) {
     exec(ev);
+    *ev.handled = true;
 }
 
 size_t wrapText(std::string string, sf::Text& text, float maxWidth) {

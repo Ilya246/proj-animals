@@ -20,6 +20,7 @@ struct ClickEvent {
     entt::entity ent;
     bool pressed;
     entt::registry* registry;
+    bool* handled;
 };
 
 struct GlobalScrollEvent {
@@ -35,6 +36,7 @@ struct ScrollEvent {
     float delta;
     entt::entity ent;
     entt::registry* registry;
+    bool* handled;
 };
 
 struct GlobalMouseMoveEvent {
