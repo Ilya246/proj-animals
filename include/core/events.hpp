@@ -1,6 +1,6 @@
 #pragma once
 #include <entt/entt.hpp>
-#include "core/components.hpp"
+#include <type_traits>
 
 // Published every update
 struct UpdateEvent {
@@ -17,37 +17,41 @@ struct ScreenResizeEvent {
 // Helper method to get the event dispatcher
 entt::dispatcher& getGlobalDispatcher(entt::registry&);
 
-inline entt::dispatcher& getEntDispatcher(entt::registry& reg, entt::entity& ent) {
-    EventDispatchComp* comp = nullptr;
-    if (!(comp = reg.try_get<EventDispatchComp>(ent)))
-        comp = &reg.emplace<EventDispatchComp>(ent);
-    return comp->dispatcher;
+template<typename TComp, typename TEv>
+void handle_event(TEv& ev, entt::entity entity, TComp& comp, entt::registry& reg);
+
+template<typename TEv>
+inline std::vector<std::function<void(TEv&, entt::entity, entt::registry&)>> evSubs;
+
+template<typename TComp, typename TEv>
+inline void try_handle_event(TEv& ev, entt::entity ent, entt::registry& reg) {
+    if (auto* comp = reg.try_get<TComp>(ent)) {
+        handle_event(ev, ent, *comp, reg);
+    }
 }
 
-template<typename TComp, typename TEv, auto Fun>
-inline void __ensureSubscribe(entt::registry& reg, entt::entity ent) {
-    getEntDispatcher(reg, ent).sink<TEv>().template connect<Fun>(reg.get<TComp>(ent));
-}
+template<typename TComp, typename TEv>
+struct event_sub {
+    event_sub() {
+        evSubs<TEv>.push_back(try_handle_event<TComp, TEv>);
+    }
+    constexpr bool _dummy() const {
+        return true;
+    }
+};
 
-template<typename TComp, typename TEv, auto Fun>
-inline void __ensureUnsubscribe(entt::registry& reg, entt::entity ent) {
-    getEntDispatcher(reg, ent).sink<TEv>().template disconnect<Fun>(reg.get<TComp>(ent));
-}
-
-// Subscribe specified component to an event.
-// When raise_local_event is raised for that event on our entity, run the function.
-template<typename TComp, typename TEv, auto Fun>
-inline void subscribe_local_event(entt::registry& reg) {
-    reg.on_construct<TComp>().template connect<&__ensureSubscribe<TComp, TEv, Fun>>();
-    reg.on_destroy<TComp>().template connect<&__ensureUnsubscribe<TComp, TEv, Fun>>();
-}
+#define HANDLE_EVENT(Type, Event) \
+    static inline const event_sub<Type, Event> _##Event##_handler; \
+    static_assert(_##Event##_handler._dummy());
 
 // Dispatch an event to an entity's components.
 // Components subscribing to the event will run code.
 template<typename TEv>
 inline void raise_local_event(entt::registry& reg, entt::entity& ent, TEv&& ev) {
-    if (EventDispatchComp* dispatch = reg.try_get<EventDispatchComp>(ent))
-        dispatch->dispatcher.trigger(ev);
+    using BaseEv = std::remove_cvref_t<TEv>;
+    for (auto& sub : evSubs<BaseEv>) {
+        sub(ev, ent, reg);
+    }
 }
 
 // Make some function happen when an event is triggered.

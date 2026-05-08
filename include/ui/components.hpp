@@ -3,6 +3,7 @@
 #include <SFML/Window/Keyboard.hpp>
 #include <functional>
 
+#include "core/events.hpp"
 #include "entt/entity/fwd.hpp"
 #include "graphics/events.hpp"
 #include "input/events.hpp"
@@ -36,9 +37,9 @@ struct UIComp {
     // Encloses all space we have allocated to children. Does not respect child_offset.
     std::optional<sf::FloatRect> allocatedBounds;
 
-    void OnTryDraw(ShouldRenderEvent&);
-    void OnPropagate(UIPropagateEvent&);
-    void OnResize(BoundsResizeEvent&);
+    HANDLE_EVENT(UIComp, ShouldRenderEvent)
+    HANDLE_EVENT(UIComp, UIPropagateEvent)
+    HANDLE_EVENT(UIComp, BoundsResizeEvent)
 
     void set_hidden(bool hide, entt::registry& reg, entt::entity ent);
     void assign_stencil(std::optional<sf::FloatRect> stencil, entt::registry& reg, entt::entity ent);
@@ -52,9 +53,9 @@ struct UIComp {
 // On resize, allocates all its available space to children.
 // Supposed to be used with UIAnchorComp or similar.
 struct UIFullAllocatorComp {
-    void OnResize(BoundsResizeEvent&);
-
     DynamicBounds bounds = DynamicBounds::full;
+
+    HANDLE_EVENT(UIFullAllocatorComp, BoundsResizeEvent)
 };
 
 // Layout modes for UILayoutComp and similar.
@@ -65,22 +66,22 @@ enum class UILayoutMode : uint8_t {
 
 // Evenly lays out child entities horizontally or vertically.
 struct UILayoutComp {
-    void OnResize(BoundsResizeEvent&);
-
     UILayoutMode mode = UILayoutMode::Vertical;
     float padding = 0.f; // inner padding around all children
     float spacing = 0.f; // gap between adjacent children
     DynamicBounds bounds = DynamicBounds::full;
+
+    HANDLE_EVENT(UILayoutComp, BoundsResizeEvent)
 };
 
 // Lays out child entities in tiled rows.
 struct UITileLayoutComp {
-    void OnResize(BoundsResizeEvent&);
-
     sf::Vector2f tileSize;
     float padding = 0.f;
     float spacing = 0.f;
     DynamicBounds bounds = DynamicBounds::full;
+
+    HANDLE_EVENT(UITileLayoutComp, BoundsResizeEvent)
 };
 
 ///
@@ -98,8 +99,8 @@ struct UIScrollAreaComp {
     float scrollMul = 25.f;
     float scrollPos = 0.f; // 0.f = top, Y-down
 
-    void OnScroll(ScrollEvent&);
-    void OnRender(RenderEvent&);
+    HANDLE_EVENT(UIScrollAreaComp, ScrollEvent)
+    HANDLE_EVENT(UIScrollAreaComp, RenderEvent)
 };
 
 ///
@@ -108,24 +109,24 @@ struct UIScrollAreaComp {
 
 // Makes this UI fill all allocated space.
 struct UIFillComp {
-    void OnAllocate(UISizeAllocatedEvent&);
-
     bool _dummy = true; // needed for EnTT
+
+    HANDLE_EVENT(UIFillComp, UISizeAllocatedEvent)
 };
 
 // Makes this UI anchor to some position in allocated space.
 struct UIAnchorComp {
-    void OnAllocate(UISizeAllocatedEvent&);
-
     DynamicBounds bounds;
+
+    HANDLE_EVENT(UIAnchorComp, UISizeAllocatedEvent)
 };
 
 // Makes this UI ignore allocated space and take a fixed size.
 struct UIAbsoluteBoundsComp {
-    void OnAllocate(UISizeAllocatedEvent&);
-
     // Absolute bounds
     sf::FloatRect bounds;
+
+    HANDLE_EVENT(UIAbsoluteBoundsComp, UISizeAllocatedEvent)
 };
 
 ///
@@ -134,39 +135,39 @@ struct UIAbsoluteBoundsComp {
 
 // Renders us as a filled rectangle with borders.
 struct UIRectComp {
-    void OnRender(RenderEvent&);
-
     sf::Color fillColor = sf::Color::Transparent;
     sf::Color borderColor = sf::Color::White;
     float borderThickness = 1.f;
+
+    HANDLE_EVENT(UIRectComp, RenderEvent)
 };
 
 // Similar to UIRectComp, but has a header.
 // TODO: simplify, tie into UIRectComp.
 struct UIWindowComp {
-    void OnRender(RenderEvent&);
-
     sf::Color fillColor = sf::Color::Transparent;
     sf::Color borderColor = sf::Color::White;
     sf::Color headerColor = sf::Color::Blue;
     float borderThickness = 1.f;
     float headerHeight = 20.f;
+
+    HANDLE_EVENT(UIWindowComp, RenderEvent)
 };
 
 // Can be dragged with the mouse if clicked and held within bounds.
 struct DraggableComp {
-    void OnClick(ClickEvent&);
-
     std::optional<DynamicBounds> bounds = {};
     bool being_dragged = false;
     sf::Vector2f anchorCoords = {0.f, 0.f};
+
+    HANDLE_EVENT(DraggableComp, ClickEvent)
 };
 
 // Runs a function when clicked.
 struct ButtonComp {
-    std::function<void(ClickEvent& ev)> exec;
+    std::function<void(ClickEvent&, entt::entity, entt::registry&)> exec;
 
-    void OnClick(ClickEvent&);
+    HANDLE_EVENT(ButtonComp, ClickEvent)
 };
 
 // Hides or unhides when a keyboard key is pressed.
@@ -176,12 +177,12 @@ struct ButtonToggledUIComp {
 
 // Displays text.
 struct TextComp {
-    void OnRender(RenderEvent&);
-    void OnResize(BoundsResizeEvent&);
-
     sf::Text text;
     bool wrap = true;
     std::string originalString = "";
+
+    HANDLE_EVENT(TextComp, RenderEvent)
+    HANDLE_EVENT(TextComp, BoundsResizeEvent)
 
     REGISTER_SERIALIZABLE(TextComp, Text)
 };

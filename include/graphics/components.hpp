@@ -6,6 +6,7 @@
 
 #include "graphics/events.hpp"
 #include "serialization/serialization.hpp"
+#include "core/events.hpp"
 
 enum ZLevel : int32_t {
     // First 26 bits - offset
@@ -37,7 +38,7 @@ struct CameraComp {
 struct SpriteComp {
     sf::Sprite sprite;
 
-    void OnRender(RenderEvent&);
+    HANDLE_EVENT(SpriteComp, RenderEvent)
 
     REGISTER_SERIALIZABLE(SpriteComp, Sprite)
 };

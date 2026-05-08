@@ -1,6 +1,7 @@
 #pragma once
 #include <SFML/Graphics.hpp>
 #include <rfl.hpp>
+#include "core/events.hpp"
 #include "graphics/events.hpp"
 #include "graphics/texture.hpp"
 #include "serialization/serialization.hpp"
@@ -25,7 +26,7 @@ struct TileMapComp {
     // Vertices for batch rendering
     sf::VertexArray vertices{sf::PrimitiveType::Triangles};
 
-    void OnRender(RenderEvent&);
+    HANDLE_EVENT(TileMapComp, RenderEvent)
 
     REGISTER_SERIALIZABLE(TileMapComp, TileMap)
 };

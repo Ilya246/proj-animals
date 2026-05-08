@@ -15,7 +15,6 @@
 
 void DrawSystem::init(entt::registry& reg) {
     subscribe_global_event<UpdateEvent, &DrawSystem::update>(reg, this);
-    subscribe_local_event<SpriteComp, RenderEvent, &SpriteComp::OnRender>(reg);
 
     // load textures
     const std::filesystem::path textures_path("resources/textures");
@@ -95,7 +94,7 @@ void DrawSystem::update(const UpdateEvent& ev) {
         for (auto [zLevel, entity] : draw) {
             bool cancelled = false;
             std::optional<sf::FloatRect> stencil = std::nullopt;
-            ShouldRenderEvent shouldEv {entity, &reg, &cancelled, &stencil};
+            ShouldRenderEvent shouldEv {&cancelled, &stencil};
             raise_local_event(reg, entity, shouldEv);
             if (cancelled)
                 continue;
@@ -131,7 +130,7 @@ void DrawSystem::update(const UpdateEvent& ev) {
             }
 
             if (!cancel_draw)
-                raise_local_event(reg, entity, RenderEvent{entity, &reg, &window});
+                raise_local_event(reg, entity, RenderEvent{&window});
 
             if (set_scissor) {
                 view.setScissor(sf::FloatRect{{0.f, 0.f}, {1.f, 1.f}}); // Clean up mask
@@ -142,11 +141,12 @@ void DrawSystem::update(const UpdateEvent& ev) {
     window.display();
 }
 
-void SpriteComp::OnRender(RenderEvent& ev) {
-    sf::Vector2f pos = Physics::getWorldPos(ev.ent, *ev.reg);
+template<>
+void handle_event(RenderEvent& ev, entt::entity ent, SpriteComp& comp, entt::registry& reg) {
+    sf::Vector2f pos = Physics::getWorldPos(ent, reg);
     pos.y *= -1.f;
-    sprite.setPosition(pos);
-    ev.window->draw(sprite);
+    comp.sprite.setPosition(pos);
+    ev.window->draw(comp.sprite);
 }
 
 namespace Graphics {

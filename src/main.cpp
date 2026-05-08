@@ -70,22 +70,25 @@ int main() {
                 break;
             }
             if (auto* mouseEv = event->getIf<sf::Event::MouseButtonPressed>()) {
-                GlobalClickEvent clickEv(mouseEv->position, mouseEv->button, true, &registry);
+                bool handled = false;
+                GlobalClickEvent clickEv{mouseEv->position, mouseEv->button, true, &registry, &handled};
                 dispatcher.trigger(clickEv);
                 continue;
             }
             if (auto* mouseEv = event->getIf<sf::Event::MouseButtonReleased>()) {
-                GlobalClickEvent clickEv(mouseEv->position, mouseEv->button, false, &registry);
+                bool handled = false;
+                GlobalClickEvent clickEv{mouseEv->position, mouseEv->button, false, &registry, &handled};
                 dispatcher.trigger(clickEv);
                 continue;
             }
             if (auto* wheelEv = event->getIf<sf::Event::MouseWheelScrolled>()) {
-                GlobalScrollEvent scrollEv(wheelEv->position, wheelEv->delta, &registry);
+                bool handled = false;
+                GlobalScrollEvent scrollEv{wheelEv->position, wheelEv->delta, &registry, &handled};
                 dispatcher.trigger(scrollEv);
                 continue;
             }
             if (auto* moveEv = event->getIf<sf::Event::MouseMoved>()) {
-                GlobalMouseMoveEvent mouseEv(moveEv->position, &registry);
+                GlobalMouseMoveEvent mouseEv{moveEv->position, &registry};
                 dispatcher.trigger(mouseEv);
                 continue;
             }
@@ -95,7 +98,8 @@ int main() {
                 continue;
             }
             if (auto* keyEv = event->getIf<sf::Event::KeyPressed>()) {
-                KeyPressEvent pressEv{keyEv->code, &registry};
+                bool handled = false;
+                KeyPressEvent pressEv{keyEv->code, &registry, &handled};
                 dispatcher.trigger(pressEv);
                 continue;
             }
@@ -123,7 +127,7 @@ void spawnBall(entt::registry& registry, entt::entity world) {
     sf::Vector2f size = sf::Vector2f{32.f, 32.f} * size_m;
     registry.emplace<BoundsComp>(ball, sf::FloatRect{-0.5f * size, size});
     registry.emplace<ClickListenerComp>(ball);
-    registry.emplace<ButtonComp>(ball, [](ClickEvent&) { std::cout << "test" << std::endl; });
+    registry.emplace<ButtonComp>(ball, [](ClickEvent&, entt::entity, entt::registry&) { std::cout << "test" << std::endl; });
     registry.emplace<ColliderComp>(ball, CollisionLayer::Player, CollisionLayer::Wall | CollisionLayer::Player, 5.f * size_m * size_m);
 
     sf::Sprite ballSprite(tex_map["mob"]);
@@ -197,6 +201,7 @@ void genUI(entt::registry& registry) {
         .draggable()
         .rect(sf::Color(30, 30, 50, 100), sf::Color(170, 170, 200, 120), 2.f)
         .allocatorFull()
+        .emplace<EditorComp>()
         .buttonToggled(sf::Keyboard::Key::F3);
 
     UIBuilder topPanel = editorContainer.child("Top Panel")
@@ -208,9 +213,10 @@ void genUI(entt::registry& registry) {
         topPanel.child(text + " Button")
             .posFill()
             .rect(sf::Color(80, 80, 100, 200), sf::Color(120, 120, 140), 1.f)
-            .button([mode](ClickEvent& ev) {
-                auto& sys = ev.registry->ctx().get<EditorSystem&>();
-                sys.mode = mode;
+            .button([mode](ClickEvent& ev, entt::entity, entt::registry& reg) {
+                auto& sys = reg.ctx().get<EditorSystem&>();
+                sys.mode = sys.mode == mode ? EditorMode::None : mode;
+                *ev.handled = true;
             })
             .text(text, "hack", 14);
     };
@@ -220,13 +226,12 @@ void genUI(entt::registry& registry) {
     topPanel.child("Delete Button")
         .posFill()
         .rect(sf::Color(100, 60, 60, 200), sf::Color(140, 120, 120), 1.f)
-        .button([](ClickEvent& ev) {
-            auto& sys = ev.registry->ctx().get<EditorSystem&>();
-            sys.mode = EditorMode::Delete;
-            auto view = ev.registry->view<EditorSelectedComp>();
+        .button([](ClickEvent& ev, entt::entity, entt::registry& reg) {
+            auto view = reg.view<EditorSelectedComp>();
             for (auto ent : view) {
-                queue_delete(ent, *ev.registry);
+                queue_delete(ent, reg);
             }
+            *ev.handled = true;
         })
         .text("Delete", "hack", 14);
 

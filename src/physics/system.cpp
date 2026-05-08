@@ -226,7 +226,7 @@ void PhysicsSystem::update(const UpdateEvent& ev) {
 
 void BoundsComp::resize(const sf::FloatRect& newBounds, entt::entity e, entt::registry& reg) {
     bounds = newBounds;
-    raise_local_event(reg, e, BoundsResizeEvent{&reg, e, newBounds});
+    raise_local_event(reg, e, BoundsResizeEvent{newBounds});
 }
 
 std::pair<int32_t, int32_t> ColliderMapComp::to_chunk(sf::Vector2f pos) {

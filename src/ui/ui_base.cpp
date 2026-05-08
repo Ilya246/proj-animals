@@ -1,3 +1,5 @@
+#include "core/events.hpp"
+#include "entt/entity/fwd.hpp"
 #include "physics/components.hpp"
 #include "physics/system.hpp"
 #include "ui/components.hpp"
@@ -6,24 +8,27 @@
 #include <SFML/Graphics/Rect.hpp>
 #include <SFML/System/Vector2.hpp>
 
-void UIComp::OnTryDraw(ShouldRenderEvent& ev) {
-    if (selfHidden || _parentHidden) {
+template<>
+void handle_event(ShouldRenderEvent& ev, entt::entity ent, UIComp& comp, entt::registry& reg) {
+    if (comp.selfHidden || comp._parentHidden) {
         *ev.cancelled = true;
         return;
     }
-    if (_cachedStencil) {
-        sf::Vector2f pos = Physics::getWorldPos(ev.ent, *ev.reg);
-        *ev.stencil = {_cachedStencil->position + pos, _cachedStencil->size};
+    if (comp._cachedStencil) {
+        sf::Vector2f pos = Physics::getWorldPos(ent, reg);
+        *ev.stencil = {comp._cachedStencil->position + pos, comp._cachedStencil->size};
     }
 }
 
-void UIComp::OnPropagate(UIPropagateEvent& ev) {
-    propagate(ev, ev.entity, *ev.registry);
+template<>
+void handle_event(UIPropagateEvent& ev, entt::entity ent, UIComp& comp, entt::registry& reg) {
+    comp.propagate(ev, ent, reg);
 }
 
-void UIComp::OnResize(BoundsResizeEvent& ev) {
-    if (isStencil) {
-        assign_stencil(ev.newBounds, *ev.registry, ev.entity);
+template<>
+void handle_event(BoundsResizeEvent& ev, entt::entity ent, UIComp& comp, entt::registry& reg) {
+    if (comp.isStencil) {
+        comp.assign_stencil(ev.newBounds, reg, ent);
     }
 }
 
@@ -31,7 +36,6 @@ void UIComp::set_hidden(bool hide, entt::registry& reg, entt::entity ent) {
     selfHidden = hide;
 
     UIPropagateEvent ev {
-        &reg, ent,
         [](entt::registry& r, entt::entity e) {
             if (auto* ui = r.try_get<UIComp>(e)) {
                 if (auto* pos = r.try_get<PositionComp>(e)) {
@@ -54,7 +58,6 @@ void UIComp::assign_stencil(std::optional<sf::FloatRect> stencil, entt::registry
     }
 
     UIPropagateEvent ev {
-        &reg, ent,
         [stencil](entt::registry& r, entt::entity e) {
             if (auto* ui = r.try_get<UIComp>(e)) {
                 std::optional<sf::FloatRect> st = stencil;
@@ -86,7 +89,6 @@ void UIComp::propagate(UIPropagateEvent& propagate, entt::entity ent, entt::regi
     propagate.action(reg, ent);
     UIPropagateEvent copyEv(propagate);
     for (entt::entity child : children) {
-        copyEv.entity = child;
         raise_local_event(reg, child, copyEv);
     }
 }

@@ -1,19 +1,17 @@
 #include <entt/entt.hpp>
 
-#include "core/events.hpp"
 #include "graphics/events.hpp"
 #include "physics/components.hpp"
 #include "world/components.hpp"
 #include "world/systems.hpp"
 
-void WorldSystem::init(entt::registry& reg) {
-    subscribe_local_event<TileMapComp, RenderEvent, &TileMapComp::OnRender>(reg);
-}
+void WorldSystem::init(entt::registry&) {}
 
-void TileMapComp::OnRender(RenderEvent& ev) {
+template<>
+void handle_event(RenderEvent& ev, entt::entity, TileMapComp& comp, entt::registry&) {
     sf::RenderStates states;
-    states.texture = texture;
-    ev.window->draw(vertices, states);
+    states.texture = comp.texture;
+    ev.window->draw(comp.vertices, states);
 }
 
 namespace MapUtil {

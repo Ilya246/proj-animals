@@ -7,7 +7,5 @@ struct GetDragEvent {
 };
 
 struct BoundsResizeEvent {
-    entt::registry* registry;
-    entt::entity entity;
     sf::FloatRect newBounds;
 };

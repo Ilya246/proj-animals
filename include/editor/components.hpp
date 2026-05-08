@@ -1,6 +1,7 @@
 #pragma once
 #include "graphics/events.hpp"
 #include "serialization/serialization.hpp"
+#include "core/events.hpp"
 
 // Component to designate the camera considered primary. Used for editor.
 struct MainCameraComp {
@@ -12,5 +13,9 @@ struct MainCameraComp {
 struct EditorSelectedComp {
     bool _dummy; // Required for EnTT
 
-    void OnRender(RenderEvent& ev);
+    HANDLE_EVENT(EditorSelectedComp, RenderEvent)
+};
+
+struct EditorComp {
+    bool _dummy;
 };

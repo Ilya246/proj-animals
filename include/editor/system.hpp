@@ -4,22 +4,19 @@
 #include "input/events.hpp"
 
 enum class EditorMode {
+    None,
     Select,
-    Delete,
-    Spawn,
-    AddComp
+    Spawn
 };
 
 struct EditorSystem : System<EditorSystem> {
-    bool editorActive = false;
-    EditorMode mode = EditorMode::Select;
+    EditorMode mode = EditorMode::None;
 
 private:
     virtual void init(entt::registry& reg) override;
-    virtual int initPriority() override { return 70; }
+    virtual int initPriority() override { return -256; }
 
     void onGlobalClick(const GlobalClickEvent& ev);
-    void onKeyPress(const KeyPressEvent& ev);
 };
 
 entt::entity find_main_world(const entt::registry& reg);

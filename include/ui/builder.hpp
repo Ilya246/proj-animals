@@ -22,7 +22,10 @@ struct UIBuilder {
     UIBuilder(entt::registry& r, entt::entity parent, const std::string& name = "") : reg(r), ent(r.create()) {
         if (!name.empty()) set_ent_name(ent, r, name);
         r.emplace<PositionComp>(ent, sf::Vector2f(0.f, 0.f), parent);
-        r.emplace<RenderableComp>(ent, r.get<RenderableComp>(parent).zLevel + 1);
+        int32_t parent_z = z_ui;
+        if (auto* parentRender = r.try_get<RenderableComp>(parent))
+            parent_z = parentRender->zLevel;
+        r.emplace<RenderableComp>(ent, parent_z + 1);
         r.emplace<BoundsComp>(ent);
         r.emplace<NonSerializableComp>(ent);
         UIComp& self_ui = r.emplace<UIComp>(ent);
@@ -55,7 +58,6 @@ struct UIBuilder {
         UIBuilder world = {r.create(), r};
         set_ent_name(world.ent, r, name);
         world.emplace<PositionComp>(sf::Vector2f(0.f, 0.f), world);
-        world.emplace<RenderableComp>(z_ui);
         world.emplace<BoundsComp>();
         world.emplace<UIFullAllocatorComp>();
         world.emplace<UIComp>();
@@ -126,7 +128,7 @@ struct UIBuilder {
         return *this;
     }
 
-    UIBuilder& button(std::function<void(ClickEvent&)>&& cb) {
+    UIBuilder& button(std::function<void(ClickEvent&, entt::entity, entt::registry&)>&& cb) {
         return emplace<ButtonComp>(cb).ensure<ClickListenerComp>();
     }
 
@@ -146,7 +148,7 @@ struct UIBuilder {
     }
 
     UIBuilder& hide() {
-        reg.get<UIComp>(ent).selfHidden = true;
+        reg.get<UIComp>(ent).set_hidden(true, reg, ent);
         return *this;
     }
 

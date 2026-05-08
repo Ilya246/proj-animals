@@ -10,30 +10,6 @@ void UISystem::init(entt::registry& reg) {
     subscribe_global_event<GlobalMouseMoveEvent, &UISystem::onGlobalMouseMove>(reg, this);
     subscribe_global_event<KeyPressEvent, &UISystem::onGlobalKeyPress>(reg, this);
 
-    subscribe_local_event<UIComp, ShouldRenderEvent, &UIComp::OnTryDraw>(reg);
-    subscribe_local_event<UIComp, UIPropagateEvent, &UIComp::OnPropagate>(reg);
-    subscribe_local_event<UIComp, BoundsResizeEvent, &UIComp::OnResize>(reg);
-
-    subscribe_local_event<UIFullAllocatorComp, BoundsResizeEvent, &UIFullAllocatorComp::OnResize>(reg);
-    subscribe_local_event<UILayoutComp, BoundsResizeEvent, &UILayoutComp::OnResize>(reg);
-    subscribe_local_event<UITileLayoutComp, BoundsResizeEvent, &UITileLayoutComp::OnResize>(reg);
-
-    subscribe_local_event<UIFillComp, UISizeAllocatedEvent, &UIFillComp::OnAllocate>(reg);
-    subscribe_local_event<UIAnchorComp, UISizeAllocatedEvent, &UIAnchorComp::OnAllocate>(reg);
-    subscribe_local_event<UIAbsoluteBoundsComp, UISizeAllocatedEvent, &UIAbsoluteBoundsComp::OnAllocate>(reg);
-
-    subscribe_local_event<UIRectComp, RenderEvent, &UIRectComp::OnRender>(reg);
-    subscribe_local_event<UIWindowComp, RenderEvent, &UIWindowComp::OnRender>(reg);
-
-    subscribe_local_event<UIScrollAreaComp, RenderEvent, &UIScrollAreaComp::OnRender>(reg);
-    subscribe_local_event<UIScrollAreaComp, ScrollEvent, &UIScrollAreaComp::OnScroll>(reg);
-
-    subscribe_local_event<DraggableComp, ClickEvent, &DraggableComp::OnClick>(reg);
-    subscribe_local_event<ButtonComp, ClickEvent, &ButtonComp::OnClick>(reg);
-
-    subscribe_local_event<TextComp, RenderEvent, &TextComp::OnRender>(reg);
-    subscribe_local_event<TextComp, BoundsResizeEvent, &TextComp::OnResize>(reg);
-
     // Load fonts
     const std::filesystem::path fonts_path("resources/fonts");
     for (const auto& font_file : std::filesystem::directory_iterator(fonts_path)) {
