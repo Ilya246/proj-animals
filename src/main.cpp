@@ -143,12 +143,12 @@ void spawnBall(entt::registry& registry, entt::entity world) {
 void genWorld(entt::registry& registry) {
     entt::entity world = registry.create();
     registry.emplace<PositionComp>(world, sf::Vector2f(0.f, 0.f), world);
-    TileMapComp& mapComp = registry.emplace<TileMapComp>(world, 64, 64, 20.f, &tex_map["notdrnottileset"]);
+    TileMapComp& mapComp = registry.emplace<TileMapComp>(world, 64, 64, 20.f, &tex_map["tileset_forest"]);
     registry.emplace<RenderableComp>(world, z_world);
     registry.emplace<BoundsComp>(world);
     // Add some random walls
     mapComp.grid.resize(mapComp.height * mapComp.width);
-    for (TileType& t : mapComp.grid) t = {math::rand<uint8_t>(3, 9), 3};
+    for (TileType& t : mapComp.grid) t = {11, math::rand<uint8_t>(4, 7)};
     for (int i = 0; i < 200; ++i) {
         int x = math::rand(0, mapComp.width - 1);
         int y = math::rand(0, mapComp.height - 1);
@@ -236,7 +236,7 @@ void genUI(entt::registry& registry) {
         .text("Delete", "hack", 14);
 
     makeModeButton("Spawn", EditorMode::Spawn);
-    makeModeButton("Add Comp", EditorMode::AddComp);
+    makeModeButton("Add Comp", EditorMode::None);
 
     editorContainer.hide();
 }
