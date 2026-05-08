@@ -25,11 +25,12 @@ struct UIBuilder {
         r.emplace<RenderableComp>(ent, r.get<RenderableComp>(parent).zLevel + 1);
         r.emplace<BoundsComp>(ent);
         r.emplace<NonSerializableComp>(ent);
-        r.emplace<UIComp>(ent);
+        UIComp& self_ui = r.emplace<UIComp>(ent);
 
         if (r.valid(parent)) {
             if (auto* ui = r.try_get<UIComp>(parent)) {
                 ui->children.push_back(ent);
+                self_ui._parentHidden = ui->selfHidden;
             }
         }
     }

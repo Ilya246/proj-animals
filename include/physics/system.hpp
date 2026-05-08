@@ -1,6 +1,6 @@
 #pragma once
 #include <SFML/System/Vector2.hpp>
-#include <entt/entity/fwd.hpp>
+#include <entt/entt.hpp>
 #include "core/events.hpp"
 #include "core/system.hpp"
 

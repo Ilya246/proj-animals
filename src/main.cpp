@@ -2,26 +2,26 @@
 #include <filesystem>
 #include <iostream>
 #include <format>
-#include <SFML/Graphics/Rect.hpp>
-#include <SFML/Graphics/Texture.hpp>
 #include <entt/entt.hpp>
 #include <SFML/Graphics.hpp>
 #include <SFML/Window/WindowEnums.hpp>
+#include "editor/system.hpp"
+#include "yaml-cpp/node/parse.h"
+
 #include "core/events.hpp"
 #include "core/system.hpp"
+#include "core/entity.hpp"
 #include "editor/components.hpp"
 #include "graphics/components.hpp"
 #include "graphics/texture.hpp"
 #include "input/components.hpp"
 #include "input/events.hpp"
 #include "physics/components.hpp"
-#include "physics/system.hpp"
 #include "serialization/serialization.hpp"
 #include "ui/builder.hpp"
 #include "ui/components.hpp"
 #include "utility/math.hpp"
 #include "world/components.hpp"
-#include "yaml-cpp/node/parse.h"
 
 void genWorld(entt::registry& registry);
 void genUI(entt::registry& registry);
@@ -40,7 +40,7 @@ int main() {
     registry.ctx().emplace<entt::dispatcher&>(dispatcher);
     registry.ctx().emplace<sf::RenderWindow&>(window);
 
-    init_systems(registry);
+    std::vector<std::unique_ptr<SystemBase>> systems = create_systems(registry);
 
     // try load saved registry
     if (std::filesystem::exists("save.yml")) {
@@ -131,7 +131,7 @@ void spawnBall(entt::registry& registry, entt::entity world) {
     ballSprite.setOrigin(sf::Vector2f(tex_map["mob"].getSize()) / 2.f);
     // Scale down a bit so balls are smaller
     ballSprite.setScale({size_m, size_m});
-    registry.emplace<SpriteComp>(ball, std::move(ballSprite));
+    registry.emplace<SpriteComp>(ball, ballSprite);
     registry.emplace<TextComp>(ball, sf::Text(font_map["hack"], "test", 15));
     registry.emplace<RenderableComp>(ball, z_entity);
 }
@@ -139,11 +139,12 @@ void spawnBall(entt::registry& registry, entt::entity world) {
 void genWorld(entt::registry& registry) {
     entt::entity world = registry.create();
     registry.emplace<PositionComp>(world, sf::Vector2f(0.f, 0.f), world);
-    TileMapComp& mapComp = registry.emplace<TileMapComp>(world, 64, 64, 32.f, &tex_map["tileset"]);
+    TileMapComp& mapComp = registry.emplace<TileMapComp>(world, 64, 64, 20.f, &tex_map["notdrnottileset"]);
     registry.emplace<RenderableComp>(world, z_world);
     registry.emplace<BoundsComp>(world);
     // Add some random walls
     mapComp.grid.resize(mapComp.height * mapComp.width);
+    for (TileType& t : mapComp.grid) t = {math::rand<uint8_t>(3, 9), 3};
     for (int i = 0; i < 200; ++i) {
         int x = math::rand(0, mapComp.width - 1);
         int y = math::rand(0, mapComp.height - 1);
@@ -155,7 +156,7 @@ void genWorld(entt::registry& registry) {
         registry.emplace<RenderableComp>(wall, z_world + 1);
         sf::Sprite wallSprite(tex_map["wall"]);
         wallSprite.setOrigin(sf::Vector2f(tex_map["wall"].getSize()) / 2.f);
-        registry.emplace<SpriteComp>(wall, std::move(wallSprite));
+        registry.emplace<SpriteComp>(wall, wallSprite);
     }
     // Generate the efficient vertex array
     MapUtil::rebuildMesh(world, mapComp, registry);
@@ -171,7 +172,7 @@ void genWorld(entt::registry& registry) {
     sf::Sprite playerSprite(tex_map["mob"]);
     playerSprite.setColor(sf::Color::Green); // tint green to distinguish
     playerSprite.setOrigin(sf::Vector2f(tex_map["mob"].getSize()) / 2.f);
-    registry.emplace<SpriteComp>(player, std::move(playerSprite));
+    registry.emplace<SpriteComp>(player, playerSprite);
     registry.emplace<RenderableComp>(player, z_entity);
 
     const auto camera = registry.create();
@@ -187,40 +188,50 @@ void genWorld(entt::registry& registry) {
 }
 
 void genUI(entt::registry& registry) {
+
+    // Prototype Editor UI replacing main.cpp genUI
     UIBuilder uiWorld = UIBuilder::makeWorld(registry, "UI World");
 
-    UIBuilder sidePanel =
-        uiWorld.child("Test Panel")
-            .posAbsolute({{20.f, 100.f}, {200.f, 400.f}})
-            .window(sf::Color(35, 35, 45, 155),
-                sf::Color(130, 130, 200),
-                sf::Color(70, 70, 100), 2.f, 30.f)
-            .allocatorTile({48.f, 48.f}, 2.f, 2.f, {0.f, 0.f, 180.f, 370.f, {false, false, false, false}})
-            .buttonToggled(sf::Keyboard::Key::F3)
-            .scrollable({180.f, 0.f, 20.f, 370.f, {false, false, false, false}}, sf::Color(140, 140, 150, 128), sf::Color(100, 100, 110, 196), sf::Color(0, 0, 0))
-            .draggable(0.f, 370.f, 200.f, 30.f, {false, false, false, false})
-            .stencil({2.f, 2.f, 176.f, 366.f, {false, false, false, false}});
+    UIBuilder editorContainer = uiWorld.child("Editor Container")
+        .posAbsolute({{200.f, 200.f}, {150.f, 300.f}})
+        .draggable()
+        .rect(sf::Color(30, 30, 50, 100), sf::Color(170, 170, 200, 120), 2.f)
+        .allocatorFull()
+        .buttonToggled(sf::Keyboard::Key::F3);
 
-    // Side panel items
-    for (int i = 0; i < 50; ++i) {
-        std::string name = "Panel " + std::to_string(i);
-        sidePanel.child(name)
+    UIBuilder topPanel = editorContainer.child("Top Panel")
+        .posAnchor(0.f, 260.f, 1.f, 40.f, {true, false, true, false})
+        .rect(sf::Color(40, 40, 40, 200), sf::Color(100, 100, 100), 1.f)
+        .allocatorLayout(UILayoutMode::Horizontal, 2.f, 2.f, DynamicBounds::full);
+
+    auto makeModeButton = [&](const std::string& text, EditorMode mode) {
+        topPanel.child(text + " Button")
             .posFill()
-            .rect(sf::Color(0, 0, 0, 0), sf::Color(120, 120, 140), 1.f)
-            .text(name, "hack", 14)
-            .stencil();
-    }
+            .rect(sf::Color(80, 80, 100, 200), sf::Color(120, 120, 140), 1.f)
+            .button([mode](ClickEvent& ev) {
+                auto& sys = ev.registry->ctx().get<EditorSystem&>();
+                sys.mode = mode;
+            })
+            .text(text, "hack", 14);
+    };
 
-    sidePanel.child("Spawn Button")
+    makeModeButton("Select", EditorMode::Select);
+    
+    topPanel.child("Delete Button")
         .posFill()
-        .rect(sf::Color(120, 0, 0, 128), sf::Color(120, 120, 140), 1.f)
-        .button([](ClickEvent& click) {
-            auto pView = click.registry->view<InputMovementComp>();
-            entt::entity world;
-            for (auto [ent, mover] : pView.each()) {
-                world = Physics::getWorld(ent, *click.registry);
-                break;
+        .rect(sf::Color(100, 60, 60, 200), sf::Color(140, 120, 120), 1.f)
+        .button([](ClickEvent& ev) {
+            auto& sys = ev.registry->ctx().get<EditorSystem&>();
+            sys.mode = EditorMode::Delete;
+            auto view = ev.registry->view<EditorSelectedComp>();
+            for (auto ent : view) {
+                queue_delete(ent, *ev.registry);
             }
-            spawnBall(*click.registry, world);
-        });
+        })
+        .text("Delete", "hack", 14);
+
+    makeModeButton("Spawn", EditorMode::Spawn);
+    makeModeButton("Add Comp", EditorMode::AddComp);
+
+    editorContainer.hide();
 }

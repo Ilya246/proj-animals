@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <memory>
 #include <entt/entt.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
@@ -14,31 +15,39 @@ struct SystemBase {
     virtual int initPriority() { return 0; };
 };
 
-inline std::vector<std::unique_ptr<SystemBase>>& get_systems() {
-    static std::vector<std::unique_ptr<SystemBase>> systems;
+inline std::vector<std::function<std::unique_ptr<SystemBase>(entt::registry&)>>& get_system_creators() {
+    static std::vector<std::function<std::unique_ptr<SystemBase>(entt::registry&)>> systems;
     return systems;
 }
 
-inline void init_systems(entt::registry& registry) {
+inline std::vector<std::unique_ptr<SystemBase>> create_systems(entt::registry& registry) {
     // Initialise systems
-    std::priority_queue<std::pair<int, SystemBase*>> init_queue;
-    for (auto& sys_ptr : get_systems()) {
-        init_queue.push({sys_ptr->initPriority(), sys_ptr.get()});
+    std::priority_queue<std::pair<int, std::unique_ptr<SystemBase>>> init_queue;
+    for (auto& sys_creator : get_system_creators()) {
+        std::unique_ptr<SystemBase> sys = sys_creator(registry);
+        init_queue.push({sys->initPriority(), std::move(sys)});
     }
+    std::vector<std::unique_ptr<SystemBase>> systems;
     while (init_queue.size() != 0) {
-        auto& sys = init_queue.top().second;
+        auto& sys = const_cast<std::unique_ptr<SystemBase>&>(init_queue.top().second);
         sys->init(registry);
+        systems.push_back(std::move(sys));
         init_queue.pop();
     }
+
+    return systems;
 }
 
 template<typename TSys>
 struct System : SystemBase {
     struct Registrar {
         Registrar() {
-            std::unique_ptr<TSys> ptr = std::make_unique<TSys>();
-            system = ptr.get();
-            get_systems().push_back(std::move(ptr));
+            auto fun = [] (entt::registry& reg) {
+                std::unique_ptr<TSys> ptr = std::make_unique<TSys>();
+                reg.ctx().emplace<TSys&>(*ptr.get());
+                return ptr;
+            };
+            get_system_creators().push_back(fun);
         }
     };
 

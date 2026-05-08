@@ -6,9 +6,9 @@
 #include "serialization/serialization.hpp"
 #include "utility/base64.hpp"
 
-enum class TileType : uint8_t {
-    Ground = 0,
-    Wall = 1
+struct TileType {
+    uint8_t x;
+    uint8_t y;
 };
 
 struct TileMapComp {

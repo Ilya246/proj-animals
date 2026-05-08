@@ -50,11 +50,8 @@ void rebuildMesh(entt::entity ent, TileMapComp& map, entt::registry& reg) {
             quad[4].position = {px + ts, py};
             quad[5].position = {px + ts, py + ts};
 
-            // UV MAPPING (Texture Coordinates)
-            // Assuming texture is a 2x1 atlas: Left=Ground, Right=Wall
-            // You should calculate this based on texture size and tile index
-            float u = (type == TileType::Wall) ? ts : 0.f;
-            float v = 0.f;
+            float u = type.x * ts;
+            float v = type.y * ts;
 
             quad[0].texCoords = {u, v};
             quad[1].texCoords = {u + ts, v};
@@ -64,11 +61,7 @@ void rebuildMesh(entt::entity ent, TileMapComp& map, entt::registry& reg) {
             quad[4].texCoords = {u + ts, v};
             quad[5].texCoords = {u + ts, v + ts};
 
-            // Optional: Lighting/Color
-            sf::Color color = sf::Color::White;
-            if (type == TileType::Wall) color = {200, 200, 200}; // Slightly darker
-
-            for (int i = 0; i < 6; ++i) quad[i].color = color;
+            for (int i = 0; i < 6; ++i) quad[i].color = sf::Color::White;
         }
     }
 
@@ -88,7 +81,7 @@ TileType getTileAt(const sf::Vector2f& pos, const TileMapComp& map) {
     sf::Vector2i tilePos = getTilePos(pos, map.tileSize);
 
     if (tilePos.x < 0 || tilePos.x >= map.width || tilePos.y < 0 || tilePos.y >= map.height) 
-        return TileType::Wall; // Bounds is wall
+        return {(uint8_t)-1, (uint8_t)-1}; // invalid
 
     return map.grid[tilePos.x + tilePos.y * map.width];
 }

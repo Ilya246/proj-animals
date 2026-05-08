@@ -48,3 +48,9 @@ struct KeyPressEvent {
     sf::Keyboard::Key key;
     entt::registry* registry;
 };
+
+struct InputMovedEvent {
+    sf::Vector2f input;
+    entt::entity ent;
+    entt::registry* reg;
+};

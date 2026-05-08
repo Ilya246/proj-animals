@@ -1,5 +1,5 @@
 #pragma once
-#include <entt/entity/fwd.hpp>
+#include <entt/entt.hpp>
 #include <SFML/Graphics.hpp>
 #include <SFML/Graphics/Rect.hpp>
 #include <SFML/System/Vector2.hpp>

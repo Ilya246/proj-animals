@@ -34,7 +34,7 @@ void UISystem::init(entt::registry& reg) {
     subscribe_local_event<TextComp, RenderEvent, &TextComp::OnRender>(reg);
     subscribe_local_event<TextComp, BoundsResizeEvent, &TextComp::OnResize>(reg);
 
-    // load fonts
+    // Load fonts
     const std::filesystem::path fonts_path("resources/fonts");
     for (const auto& font_file : std::filesystem::directory_iterator(fonts_path)) {
         if (font_file.is_regular_file()) {

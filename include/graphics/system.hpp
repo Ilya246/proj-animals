@@ -5,6 +5,7 @@
 struct DrawSystem : System<DrawSystem> {
     private:
         virtual void init(entt::registry&) override;
+        virtual int initPriority() override { return 256; };
 
         void update(const UpdateEvent&);
 };

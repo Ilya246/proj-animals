@@ -44,6 +44,9 @@ void InputSystem::update(const UpdateEvent& ev) {
         sf::Vector2f deltaVel = targetVel - playerVelComp.velocity;
         if (deltaVel != zeroVec)
             playerVelComp.velocity += deltaVel.normalized() * mover.accel * ev.dt;
+
+        InputMovedEvent iEv((sf::Vector2f)input, entity, ev.registry);
+        raise_local_event(*iEv.reg, entity, iEv);
     }
 }
 
