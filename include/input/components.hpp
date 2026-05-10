@@ -3,6 +3,7 @@
 #include <SFML/System/Vector2.hpp>
 #include <optional>
 #include "core/events.hpp"
+#include "input/events.hpp"
 #include "physics/events.hpp"
 #include "serialization/serialization.hpp"
 
@@ -28,4 +29,14 @@ struct ScrollListenerComp {
     std::optional<sf::FloatRect> bounds = {};
 
     REGISTER_SERIALIZABLE(ScrollListenerComp, ScrollListener)
+};
+
+struct HoverListenerComp {
+    std::optional<sf::FloatRect> bounds = {};
+    uint64_t lastHoverTick = 0;
+    float hoverTime = 0.f;
+    sf::Vector2f lastWorldCoords = {0.f, 0.f};
+
+    HANDLE_EVENT(HoverListenerComp, HoverEvent)
+    REGISTER_SERIALIZABLE(HoverListenerComp, HoverListener)
 };

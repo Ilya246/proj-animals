@@ -19,7 +19,7 @@ struct ClickEvent {
     sf::Vector2f worldCoords;
     sf::Mouse::Button button;
     bool pressed;
-    bool* handled;
+    bool handled;
 };
 
 struct GlobalScrollEvent {
@@ -34,7 +34,7 @@ struct ScrollEvent {
     sf::Vector2f relativeCoords;
     sf::Vector2f worldCoords;
     float delta;
-    bool* handled;
+    bool handled;
 };
 
 struct GlobalMouseMoveEvent {
@@ -50,4 +50,19 @@ struct KeyPressEvent {
 
 struct InputMovedEvent {
     sf::Vector2f input;
+};
+
+struct GlobalHoverEvent {
+    sf::Vector2i pixelCoords;
+    entt::registry* registry;
+    bool* handled;
+};
+
+struct HoverEvent {
+    sf::Vector2i pixelCoords;
+    sf::Vector2f relativeCoords;
+    sf::Vector2f worldCoords;
+    float dt;
+    uint64_t tick;
+    bool& handled;
 };

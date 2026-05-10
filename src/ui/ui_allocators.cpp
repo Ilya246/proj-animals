@@ -156,5 +156,5 @@ void handle_event(ScrollEvent& ev, entt::entity ent, UIScrollAreaComp& comp, ent
     ui.childOffset.y = comp.scrollPos;
     BoundsComp bounds = reg.get<BoundsComp>(ent);
     bounds.resize(bounds.bounds, ent, reg);
-    *ev.handled = true;
+    ev.handled = true;
 }

@@ -39,6 +39,7 @@ int main() {
 
     registry.ctx().emplace<entt::dispatcher&>(dispatcher);
     registry.ctx().emplace<sf::RenderWindow&>(window);
+    registry.ctx().emplace<uint64_t>(0);
 
     std::vector<std::unique_ptr<SystemBase>> systems = create_systems(registry);
 
@@ -108,6 +109,8 @@ int main() {
         // Dispatch update event
         UpdateEvent updateEv(dt, &registry);
         dispatcher.trigger(updateEv);
+
+        registry.ctx().get<uint64_t>()++;
     }
 
     std::cout << std::format("Writing save to save.yml...");
@@ -209,6 +212,34 @@ void genUI(entt::registry& registry) {
         .rect(sf::Color(40, 40, 40, 200), sf::Color(100, 100, 100), 1.f)
         .allocatorLayout(UILayoutMode::Horizontal, 2.f, 2.f, DynamicBounds::full);
 
+    UIBuilder selectorPanel = editorContainer.child("Selector Panel")
+        .posAnchor(0.f, 220.f, 1.f, 40.f, {true, false, true, false})
+        .rect(sf::Color(50, 50, 50, 200), sf::Color(100, 100, 100), 1.f)
+        .allocatorLayout(UILayoutMode::Horizontal, 2.f, 2.f, DynamicBounds::full);
+
+    entt::entity tbComp = selectorPanel.child("Comp Editor TB")
+        .posFill()
+        .rect(sf::Color(100, 150, 100), sf::Color(120, 120, 120), 1.f)
+        .toggleButton(true, sf::Color(100, 150, 100), sf::Color(80, 80, 80),[](bool on, entt::entity, entt::registry&) {
+            if (on) std::cout << "Comp Editor ON!\n";
+            else std::cout << "Comp Editor OFF!\n";
+        })
+        .text("Comp Editor", "hack", 12)
+        .get();
+
+    entt::entity tbTile = selectorPanel.child("Tile Editor TB")
+        .posFill()
+        .rect(sf::Color(80, 80, 80), sf::Color(120, 120, 120), 1.f)
+        .toggleButton(false, sf::Color(100, 150, 100), sf::Color(80, 80, 80),[](bool on, entt::entity, entt::registry&) {
+            if (on) std::cout << "Tile Editor ON!\n";
+            else std::cout << "Tile Editor OFF!\n";
+        })
+        .text("Tile Editor", "hack", 12)
+        .get();
+
+    registry.get<ToggleButtonComp>(tbComp).exclusiveGroup.push_back(tbTile);
+    registry.get<ToggleButtonComp>(tbTile).exclusiveGroup.push_back(tbComp);
+
     auto makeModeButton = [&](const std::string& text, EditorMode mode) {
         topPanel.child(text + " Button")
             .posFill()
@@ -216,9 +247,10 @@ void genUI(entt::registry& registry) {
             .button([mode](ClickEvent& ev, entt::entity, entt::registry& reg) {
                 auto& sys = reg.ctx().get<EditorSystem&>();
                 sys.mode = sys.mode == mode ? EditorMode::None : mode;
-                *ev.handled = true;
+                ev.handled = true;
             })
-            .text(text, "hack", 14);
+            .text(text, "hack", 14)
+            .tooltip("This is the " + text + " mode button.");
     };
 
     makeModeButton("Select", EditorMode::Select);
@@ -231,9 +263,10 @@ void genUI(entt::registry& registry) {
             for (auto ent : view) {
                 queue_delete(ent, reg);
             }
-            *ev.handled = true;
+            ev.handled = true;
         })
-        .text("Delete", "hack", 14);
+        .text("Delete", "hack", 14)
+        .tooltip("Deletes the selected entity.");
 
     makeModeButton("Spawn", EditorMode::Spawn);
     makeModeButton("Add Comp", EditorMode::None);

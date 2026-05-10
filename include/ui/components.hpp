@@ -186,3 +186,19 @@ struct TextComp {
 
     REGISTER_SERIALIZABLE(TextComp, Text)
 };
+
+struct ToggleButtonComp {
+    bool isToggled = false;
+    std::function<void(bool, entt::entity, entt::registry&)> cb;
+    std::vector<entt::entity> exclusiveGroup;
+    sf::Color onColor;
+    sf::Color offColor;
+
+    HANDLE_EVENT(ToggleButtonComp, ClickEvent)
+};
+
+struct TooltipProviderComp {
+    std::string text;
+    float threshold = 0.5f;
+    entt::entity spawnedTooltip = entt::null;
+};

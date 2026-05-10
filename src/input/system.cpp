@@ -45,6 +45,19 @@ void InputSystem::update(const UpdateEvent& ev) {
         InputMovedEvent iEv((sf::Vector2f)input);
         raise_local_event(*ev.registry, entity, iEv);
     }
+
+    sf::RenderWindow& window = ev.registry->ctx().get<sf::RenderWindow&>();
+    if (window.hasFocus()) {
+        sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+        bool handled = false;
+        GlobalHoverEvent hEv{mousePos, ev.registry, &handled};
+        uint64_t currentTick = ev.registry->ctx().get<uint64_t>();
+
+        Input::handle_mouse_event<HoverEvent, HoverListenerComp, GlobalHoverEvent, true>(hEv, 
+            [&](sf::Vector2f relPos, sf::Vector2f globalPos, entt::entity ent, bool* handled) {
+                raise_local_event(*ev.registry, ent, HoverEvent{mousePos, relPos, globalPos, ev.dt, currentTick, *handled});
+            });
+    }
 }
 
 namespace Input {
@@ -69,16 +82,16 @@ namespace Input {
 }
 
 void InputSystem::receiveClick(const GlobalClickEvent& ev) {
-    Input::handle_mouse_event<ClickEvent, ClickListenerComp>(ev,
+    Input::handle_mouse_event<ClickEvent, ClickListenerComp, GlobalClickEvent, true>(ev,
         [&ev](sf::Vector2f relPos, sf::Vector2f globalPos, entt::entity ent, bool* handled) {
-            raise_local_event(*ev.registry, ent, ClickEvent{ev.pixelCoords, relPos, globalPos, ev.button, ev.pressed, handled});
+            raise_local_event(*ev.registry, ent, ClickEvent{ev.pixelCoords, relPos, globalPos, ev.button, ev.pressed, *handled});
         });
 }
 
 void InputSystem::receiveScroll(const GlobalScrollEvent& ev) {
-    Input::handle_mouse_event<ScrollEvent, ScrollListenerComp>(ev,
+    Input::handle_mouse_event<ScrollEvent, ScrollListenerComp, GlobalScrollEvent, true>(ev,
         [&ev](sf::Vector2f relPos, sf::Vector2f globalPos, entt::entity ent, bool* handled) {
-            return raise_local_event(*ev.registry, ent, ScrollEvent{ev.pixelCoords, relPos, globalPos, ev.delta, handled});
+            return raise_local_event(*ev.registry, ent, ScrollEvent{ev.pixelCoords, relPos, globalPos, ev.delta, *handled});
         });
 }
 
@@ -87,4 +100,15 @@ template<>
 void handle_event(GetDragEvent& ev, entt::entity, InputMovementComp& comp, entt::registry&) {
     if (comp.lastInput != zeroVec)
         *ev.drag = 0.f;
+}
+
+template<>
+void handle_event(HoverEvent& ev, entt::entity, HoverListenerComp& comp, entt::registry&) {
+    if (ev.tick > comp.lastHoverTick + 1) {
+        comp.hoverTime = 0.f;
+    }
+    comp.hoverTime += ev.dt;
+    comp.lastHoverTick = ev.tick;
+    comp.lastWorldCoords = ev.worldCoords;
+    ev.handled = true;
 }

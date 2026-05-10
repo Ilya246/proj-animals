@@ -155,4 +155,12 @@ struct UIBuilder {
     UIBuilder& buttonToggled(sf::Keyboard::Key key) {
         return emplace<ButtonToggledUIComp>(key);
     }
+
+    UIBuilder& toggleButton(bool initial, sf::Color onColor, sf::Color offColor, std::function<void(bool, entt::entity, entt::registry&)>&& cb) {
+        return emplace<ToggleButtonComp>(initial, std::move(cb), std::vector<entt::entity>{}, onColor, offColor).ensure<ClickListenerComp>();
+    }
+
+    UIBuilder& tooltip(const std::string& text, float threshold = 0.5f) {
+        return emplace<HoverListenerComp>().emplace<TooltipProviderComp>(text, threshold);
+    }
 };

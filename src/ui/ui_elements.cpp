@@ -67,14 +67,14 @@ void handle_event(ClickEvent& ev, entt::entity ent, DraggableComp& comp, entt::r
 
     comp.being_dragged = pressed;
     comp.anchorCoords = ev.relativeCoords;
-    *ev.handled = true;
+    ev.handled = true;
 }
 
 template<>
 void handle_event(ClickEvent& ev, entt::entity ent, ButtonComp& comp, entt::registry& reg) {
     if (!ev.pressed) return;
     comp.exec(ev, ent, reg);
-    *ev.handled = true;
+    ev.handled = true;
 }
 
 size_t wrapText(std::string string, sf::Text& text, float maxWidth) {
@@ -167,4 +167,32 @@ void handle_event(RenderEvent& ev, entt::entity ent, UIScrollAreaComp& comp, ent
     bar.setFillColor(comp.barColor);
     bar.setOutlineThickness(0.f);
     ev.window->draw(bar);
+}
+
+template<>
+void handle_event(ClickEvent& ev, entt::entity ent, ToggleButtonComp& comp, entt::registry& reg) {
+    if (!ev.pressed) return;
+    
+    comp.isToggled = !comp.isToggled;
+    if (auto* rect = reg.try_get<UIRectComp>(ent)) {
+        rect->fillColor = comp.isToggled ? comp.onColor : comp.offColor;
+    }
+    if (comp.cb) comp.cb(comp.isToggled, ent, reg);
+    
+    if (comp.isToggled) {
+        for (auto exEnt : comp.exclusiveGroup) {
+            if (reg.valid(exEnt) && exEnt != ent) {
+                if (auto* exComp = reg.try_get<ToggleButtonComp>(exEnt)) {
+                    if (exComp->isToggled) {
+                        exComp->isToggled = false;
+                        if (auto* exRect = reg.try_get<UIRectComp>(exEnt)) {
+                            exRect->fillColor = exComp->offColor;
+                        }
+                        if (exComp->cb) exComp->cb(false, exEnt, reg);
+                    }
+                }
+            }
+        }
+    }
+    ev.handled = true;
 }
