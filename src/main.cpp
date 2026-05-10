@@ -202,7 +202,7 @@ void genUI(entt::registry& registry) {
     UIBuilder uiWorld = UIBuilder::makeWorld(registry, "UI World");
 
     UIBuilder editorContainer = uiWorld.child("Editor Container")
-        .posAbsolute({{200.f, 200.f}, {150.f, 300.f}})
+        .posAbsolute({{200.f, 200.f}, {200.f, 300.f}})
         .draggable()
         .rect(sf::Color(30, 30, 50, 100), sf::Color(170, 170, 200, 120), 2.f)
         .allocatorLayout(UILayoutMode::Vertical, 2.f, 2.f, DynamicBounds::full, true)
@@ -222,7 +222,7 @@ void genUI(entt::registry& registry) {
             else std::cout << "Comp Editor OFF!\n";
         })
         .constraint(0.f, 30.f, true, false)
-        .childText("Comp Editor", "hack", 12)
+        .childText("Comp", "hack", 12)
         .get();
 
     entt::entity tbTile = selectorPanel.child("Tile Editor TB")
@@ -233,7 +233,7 @@ void genUI(entt::registry& registry) {
             else std::cout << "Tile Editor OFF!\n";
         })
         .constraint(0.f, 30.f, true, false)
-        .text("Tile Editor", "hack", 12)
+        .text("Tile", "hack", 12)
         .get();
 
     registry.get<ToggleButtonComp>(tbComp).exclusiveGroup.push_back(tbTile);
@@ -258,7 +258,7 @@ void genUI(entt::registry& registry) {
             .tooltip("This is the " + text + " mode button.");
     };
 
-    makeModeButton("Select", EditorMode::Select);
+    makeModeButton("[]", EditorMode::Select);
 
     topPanel.child("Delete Button")
         .posFill()
@@ -270,12 +270,12 @@ void genUI(entt::registry& registry) {
             }
             ev.handled = true;
         })
-        .childText("Delete", "hack", 14)
+        .childText("X", "hack", 14)
         .constraint(0.f, 30.f, true, false)
         .tooltip("Deletes the selected entity.");
 
-    makeModeButton("Spawn", EditorMode::Spawn);
-    makeModeButton("Add Comp", EditorMode::None);
+    makeModeButton("+", EditorMode::Spawn);
+    makeModeButton("M", EditorMode::None);
 
     editorContainer.hide();
 }
