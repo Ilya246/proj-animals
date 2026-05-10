@@ -21,7 +21,7 @@ struct UIBuilder {
 
     UIBuilder(entt::registry& r, entt::entity parent, const std::string& name = "") : reg(r), ent(r.create()) {
         if (!name.empty()) set_ent_name(ent, r, name);
-        r.emplace<PositionComp>(ent, sf::Vector2f(0.f, 0.f), parent);
+        r.emplace<PositionComp>(ent, sf::Vector2f(0.f, 0.f)).setParent(parent, ent, reg);
         int32_t parent_z = z_ui;
         if (auto* parentRender = r.try_get<RenderableComp>(parent))
             parent_z = parentRender->zLevel;
@@ -57,14 +57,15 @@ struct UIBuilder {
     static UIBuilder makeWorld(entt::registry& r, const std::string& name = "") {
         UIBuilder world = {r.create(), r};
         set_ent_name(world.ent, r, name);
-        world.emplace<PositionComp>(sf::Vector2f(0.f, 0.f), world);
+        world.emplace<PositionComp>(sf::Vector2f(0.f, 0.f));
+        r.get<PositionComp>(world).setParent(world, world, r);
         world.emplace<BoundsComp>();
         world.emplace<UIFullAllocatorComp>();
         world.emplace<UIComp>();
 
         entt::entity cam = r.create();
         set_ent_name(cam, r, name + ": Camera");
-        r.emplace<PositionComp>(cam, sf::Vector2f(0.f, 0.f), world);
+        r.emplace<PositionComp>(cam, sf::Vector2f(0.f, 0.f)).setParent(world, cam, r);
         r.emplace<CameraComp>(cam, 1.f, z_ui);
 
         world.emplace<UIScreenComp>(cam);
@@ -96,8 +97,8 @@ struct UIBuilder {
         return emplace<UIFullAllocatorComp>();
     }
 
-    UIBuilder& allocatorLayout(UILayoutMode mode, float padding = 0.f, float spacing = 0.f, DynamicBounds bounds = DynamicBounds::full) {
-        return emplace<UILayoutComp>(mode, padding, spacing, bounds);
+    UIBuilder& allocatorLayout(UILayoutMode mode, float padding = 0.f, float spacing = 0.f, DynamicBounds bounds = DynamicBounds::full, bool invertAnchor = false) {
+        return emplace<UILayoutComp>(mode, padding, spacing, bounds, invertAnchor);
     }
 
     UIBuilder& allocatorTile(sf::Vector2f tileSize, float padding = 0.f, float spacing = 0.f, DynamicBounds bounds = DynamicBounds::full) {
@@ -106,6 +107,10 @@ struct UIBuilder {
 
     UIBuilder& scrollable(DynamicBounds bounds, sf::Color innerColor, sf::Color outlineColor, sf::Color barColor, float outlineThickness = 2.f, float scrollMul = 25.f) {
         return emplace<UIScrollAreaComp>(bounds, innerColor, outlineColor, barColor, outlineThickness, scrollMul).ensure<ScrollListenerComp>();
+    }
+
+    UIBuilder& constraint(float minW, float minH, bool expX = false, bool expY = false, float wX = 1.f, float wY = 1.f) {
+        return emplace<UILayoutConstraintComp>(minW, minH, expX, expY, wX, wY);
     }
 
     UIBuilder& zIndex(int32_t z) {
@@ -117,15 +122,21 @@ struct UIBuilder {
         return emplace<UIRectComp>(fill, border, thickness);
     }
 
-    UIBuilder& window(sf::Color fill, sf::Color border, sf::Color header, float thickness = 2.f, float headerHeight = 20.f) {
-        return emplace<UIWindowComp>(fill, border, header, thickness, headerHeight);
-    }
-
     UIBuilder& text(const std::string& str, const std::string& font, unsigned int size, sf::Color color = sf::Color::White, bool wrap = false) {
-        auto& t = reg.emplace<TextComp>(ent, sf::Text(font_map[font], str, size));
+        TextComp& t = reg.emplace<TextComp>(ent, sf::Text(font_map[font], str, size));
         t.text.setFillColor(color);
         t.wrap = wrap;
         return *this;
+    }
+
+    // Gives us a text child entity.
+    // NOTE: also give us allocatorFull().
+    UIBuilder& childText(const std::string& str, const std::string& font, unsigned int size, sf::Color color = sf::Color::White, bool wrap = false) {
+        UIBuilder{reg, ent, "Text"}
+            .text(str, font, size, color, wrap)
+            .posFill();
+
+        return allocatorFull();
     }
 
     UIBuilder& button(std::function<void(ClickEvent&, entt::entity, entt::registry&)>&& cb) {

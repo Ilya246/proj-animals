@@ -26,7 +26,7 @@ struct RenderableComp {
     REGISTER_SERIALIZABLE(RenderableComp, Renderable)
 };
 
-// Renders entities with the same world parent in bounds. 
+// Renders entities with the same world parent in bounds.
 struct CameraComp {
     float scale;
     int32_t zLevel; // Camera's own z-level. Takes priority over renderable z-level.

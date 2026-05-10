@@ -51,7 +51,7 @@ namespace Input {
 
             bool nonRenderable = false;
             std::optional<sf::FloatRect> stencil = std::nullopt;
-            ShouldRenderEvent shouldEv{&nonRenderable, &stencil};
+            ShouldRenderEvent shouldEv{nonRenderable, stencil};
             raise_local_event(*ev.registry, entity, shouldEv);
 
             if (nonRenderable || !clickMap.contains(worldEnt))

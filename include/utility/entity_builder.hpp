@@ -15,11 +15,14 @@ struct EntityBuilder{
     entt::entity ent;
     EntityBuilder(entt::entity ent, entt::registry& r) : reg(r), ent(ent) {};
 
-    EntityBuilder(entt::registry& r, const std::string& name = "") : reg(r), ent(r.create())
+    EntityBuilder(entt::registry& r, const std::string& name = "", entt::entity parent = entt::null) : reg(r), ent(r.create())
     {
         if (!name.empty()) set_ent_name(ent, r, name);
-        r.emplace<PositionComp>(ent, zeroVec, entt::null);
-        r.emplace<RenderableComp>(ent, z_entity);
+        r.emplace<PositionComp>(ent, zeroVec).setParent(ent, reg.valid(parent) ? parent : ent, r);
+        int32_t parent_z = z_entity;
+        if (auto* parentRender = r.try_get<RenderableComp>(parent))
+            parent_z = parentRender->zLevel;
+        r.emplace<RenderableComp>(ent, parent_z);
         r.emplace<BoundsComp>(ent);
     }
 
@@ -50,10 +53,15 @@ struct EntityBuilder{
         return *this;
     }
 
+    EntityBuilder child(std::string name) {
+        return EntityBuilder(reg, name, ent);
+    }
+
     EntityBuilder& pos(float x, float y, entt::entity parent = entt::null) {
         auto& p = reg.get<PositionComp>(ent);
         p.position = {x, y};
-        p.parent = parent;
+        if (parent != entt::null)
+            p.setParent(parent, ent, reg);
         return *this;
     }
 
@@ -71,9 +79,12 @@ struct EntityBuilder{
         return *this;
     }
 
+    EntityBuilder& bounds(float px, float py, float sx, float sy) {
+        return bounds({{px, py}, {sx, sy}});
+    }
+
     EntityBuilder& sprite(sf::Sprite&& sprite) {
-        ensure_force<SpriteComp>(sprite);
-        return *this;
+        return ensure_force<SpriteComp>(sprite);
     }
 
     EntityBuilder& camera(float scale = 1.f, ZLevel z = z_world) {

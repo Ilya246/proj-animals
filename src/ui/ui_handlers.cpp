@@ -19,3 +19,11 @@ template<>
 void handle_event(UISizeAllocatedEvent&, entt::entity ent, UIAbsoluteBoundsComp& comp, entt::registry& reg) {
     reg.get<BoundsComp>(ent).resize(comp.bounds, ent, reg);
 }
+
+template<>
+void handle_event(UIQueryChildEvent& ev, entt::entity, UILayoutConstraintComp& comp, entt::registry&) {
+    ev.constraints.minWidth = std::max(ev.constraints.minWidth, comp.minWidth);
+    ev.constraints.minHeight = std::max(ev.constraints.minHeight, comp.minHeight);
+    if (comp.expandX) { ev.constraints.expandX = true; ev.constraints.weightX = std::max(ev.constraints.weightX, comp.weightX); }
+    if (comp.expandY) { ev.constraints.expandY = true; ev.constraints.weightY = std::max(ev.constraints.weightY, comp.weightY); }
+}

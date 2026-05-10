@@ -55,9 +55,9 @@ void PhysicsSystem::update(const UpdateEvent& ev) {
 
     auto colliderView = ev.registry->view<PositionComp, ColliderComp>();
     for (auto [entity, pos, collider] : colliderView.each()) {
-        ColliderMapComp* map = reg.try_get<ColliderMapComp>(pos.parent);
+        ColliderMapComp* map = reg.try_get<ColliderMapComp>(pos.parent());
         if (!map)
-            map = &reg.emplace<ColliderMapComp>(pos.parent);
+            map = &reg.emplace<ColliderMapComp>(pos.parent());
 
         for_chunk(0, reg, entity, pos, *map, [&](int32_t x, int32_t y) { map->spatial_map[map->chunk_hash(x, y)].push_back(entity); });
     }
@@ -74,7 +74,7 @@ void PhysicsSystem::update(const UpdateEvent& ev) {
             if (ColliderComp* collider = reg.try_get<ColliderComp>(entity)) {
                 move_blocked = collider->move_blocked;
                 collider->move_blocked = false;
-                ColliderMapComp& map = reg.get<ColliderMapComp>(pos.parent);
+                ColliderMapComp& map = reg.get<ColliderMapComp>(pos.parent());
 
                 std::unordered_set<entt::entity> intersecting;
                 for_chunk(1, reg, entity, pos, map, [&](int32_t x, int32_t y) {
@@ -189,7 +189,7 @@ void PhysicsSystem::update(const UpdateEvent& ev) {
                                 else if (normal.y == -1.f) penetration = -relBounds.position.y;
 
                                 const float pen_adj = 0.01f;
-                                const float pen_frac = 0.8f; 
+                                const float pen_frac = 0.8f;
                                 float correctionMag = std::max(penetration - pen_adj, 0.0f) * pen_frac;
                                 sf::Vector2f correction = normal * correctionMag;
 
@@ -214,7 +214,7 @@ void PhysicsSystem::update(const UpdateEvent& ev) {
                 pos.position += desiredMove;
 
             float drag = phys.drag;
-            raise_local_event(reg, entity, GetDragEvent(&drag));
+            raise_local_event(reg, entity, GetDragEvent(drag));
             float dragBy = drag * ev.dt;
             if (phys.velocity.lengthSquared() <= dragBy * dragBy)
                 phys.velocity = zeroVec;
@@ -244,28 +244,52 @@ uint64_t ColliderMapComp::chunk_hash(int32_t x, int32_t y) {
     return (int64_t)x | ((int64_t)y << 32);
 }
 
+entt::entity PositionComp::parent() const {
+    return _parent;
+}
+
+void PositionComp::setParent(entt::entity to, entt::entity self, entt::registry& reg) {
+    if (reg.valid(_parent)) {
+        PositionComp& ppos = reg.get<PositionComp>(_parent);
+        auto at = std::find(ppos.children.begin(), ppos.children.end(), to);
+        ppos.children.erase(at);
+    }
+
+    _parent = to;
+
+    if (self != to)
+        reg.get<PositionComp>(to).children.push_back(self);
+}
+
+template<>
+void handle_event(EntityDeleteEvent&, entt::entity, PositionComp& comp, entt::registry& reg) {
+    for (entt::entity ch : comp.children) {
+        queue_delete(ch, reg);
+    }
+}
+
 namespace Physics {
 
 entt::entity getWorld(const entt::entity& ent, const entt::registry& reg) {
     const PositionComp* comp = &reg.get<PositionComp>(ent);
-    const entt::entity* cEnt = &ent;
-    while (comp->parent != *cEnt) {
-        cEnt = &comp->parent;
-        comp = &reg.get<PositionComp>(*cEnt);
+    entt::entity cEnt = ent;
+    while (comp->parent() != cEnt) {
+        cEnt = comp->parent();
+        comp = &reg.get<PositionComp>(cEnt);
     }
-    return *cEnt;
+    return cEnt;
 }
 
 std::pair<entt::entity, sf::Vector2f> getWorldAndPos(const entt::entity& ent, const entt::registry& reg) {
     const PositionComp* comp = &reg.get<PositionComp>(ent);
-    const entt::entity* cEnt = &ent;
+    entt::entity cEnt = ent;
     sf::Vector2f pos = comp->position;
-    while (comp->parent != *cEnt) {
-        cEnt = &comp->parent;
-        comp = &reg.get<PositionComp>(*cEnt);
+    while (comp->parent() != cEnt) {
+        cEnt = comp->parent();
+        comp = &reg.get<PositionComp>(cEnt);
         pos += comp->position;
     }
-    return {*cEnt, pos};
+    return {cEnt, pos};
 }
 
 sf::Vector2f getWorldPos(const entt::entity& ent, const entt::registry& reg) {

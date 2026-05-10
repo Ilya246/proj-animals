@@ -50,7 +50,7 @@ struct TileMapCompHelper {
     float tileSize;
     std::string grid;
     std::string texture;
- 
+
     static TileMapCompHelper from_class(const TileMapComp& map) noexcept {
         std::string_view tiles_view((char*)map.grid.data(), map.grid.size() * sizeof(TileType));
         return TileMapCompHelper{
@@ -61,7 +61,7 @@ struct TileMapCompHelper {
             tex_name_map[map.texture]
         };
     }
-    
+
     TileMapComp to_class() const noexcept {
         TileMapComp map;
         map.width = width;
@@ -77,7 +77,7 @@ struct TileMapCompHelper {
 namespace rfl::parsing {
 template <class ReaderType, class WriterType, class ProcessorsType>
 struct Parser<ReaderType, WriterType, TileMapComp, ProcessorsType>
-    : public CustomParser<ReaderType, WriterType, ProcessorsType, 
+    : public CustomParser<ReaderType, WriterType, ProcessorsType,
                           TileMapComp, TileMapCompHelper> {};
 }
 

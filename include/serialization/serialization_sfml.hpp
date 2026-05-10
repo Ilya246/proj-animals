@@ -67,7 +67,7 @@ struct Parser<ReaderType, WriterType, sf::Color, ProcessorsType>
 
 struct SfmlTextureHelper {
     std::string texture;
- 
+
     static SfmlTextureHelper from_class(const sf::Texture& tex) noexcept {
         return SfmlTextureHelper{
             tex_name_map[&tex]
@@ -82,7 +82,7 @@ struct SfmlTextureHelper {
 namespace rfl::parsing {
 template <class ReaderType, class WriterType, class ProcessorsType>
 struct Parser<ReaderType, WriterType, const sf::Texture&, ProcessorsType>
-    : public CustomParser<ReaderType, WriterType, ProcessorsType, 
+    : public CustomParser<ReaderType, WriterType, ProcessorsType,
                           const sf::Texture&, SfmlTextureHelper> {};
 }
 
@@ -93,7 +93,7 @@ struct SfmlSpriteHelper {
     sf::Vector2f origin{0.f, 0.f};
     sf::Vector2f scale{1.f, 1.f};
     sf::Color color{sf::Color::White};
-    
+
     static SfmlSpriteHelper from_class(const sf::Sprite& sprite) noexcept {
         SfmlSpriteHelper helper;
         helper.texture = tex_name_map[&sprite.getTexture()];
@@ -119,7 +119,7 @@ struct SfmlSpriteHelper {
 namespace rfl::parsing {
 template <class ReaderType, class WriterType, class ProcessorsType>
 struct Parser<ReaderType, WriterType, sf::Sprite, ProcessorsType>
-    : public CustomParser<ReaderType, WriterType, ProcessorsType, 
+    : public CustomParser<ReaderType, WriterType, ProcessorsType,
                           sf::Sprite, SfmlSpriteHelper> {};
 }
 
@@ -136,7 +136,7 @@ struct SfmlViewHelper {
 namespace rfl::parsing {
 template <class ReaderType, class WriterType, class ProcessorsType>
 struct Parser<ReaderType, WriterType, sf::View, ProcessorsType>
-    : public CustomParser<ReaderType, WriterType, ProcessorsType, 
+    : public CustomParser<ReaderType, WriterType, ProcessorsType,
                           sf::View, SfmlViewHelper> {};
 }
 
@@ -178,6 +178,6 @@ struct SfmlTextHelper {
 namespace rfl::parsing {
 template <class ReaderType, class WriterType, class ProcessorsType>
 struct Parser<ReaderType, WriterType, sf::Text, ProcessorsType>
-    : public CustomParser<ReaderType, WriterType, ProcessorsType, 
+    : public CustomParser<ReaderType, WriterType, ProcessorsType,
                           sf::Text, SfmlTextHelper> {};
 }

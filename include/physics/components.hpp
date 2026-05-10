@@ -3,13 +3,22 @@
 #include <SFML/Graphics/Rect.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <unordered_map>
+#include "core/events.hpp"
+#include "core/entity.hpp"
 #include "entt/entity/fwd.hpp"
 #include "serialization/serialization.hpp"
 #include "utility/constants.hpp"
 
 struct PositionComp {
     sf::Vector2f position;
-    entt::entity parent;
+
+    std::vector<entt::entity> children = {};
+    entt::entity _parent = entt::null;
+
+    entt::entity parent() const;
+    void setParent(entt::entity to, entt::entity self, entt::registry& reg);
+
+    HANDLE_EVENT(PositionComp, EntityDeleteEvent)
 
     REGISTER_SERIALIZABLE(PositionComp, Position)
 };

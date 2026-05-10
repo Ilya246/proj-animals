@@ -11,12 +11,12 @@
 template<>
 void handle_event(ShouldRenderEvent& ev, entt::entity ent, UIComp& comp, entt::registry& reg) {
     if (comp.selfHidden || comp._parentHidden) {
-        *ev.cancelled = true;
+        ev.cancelled = true;
         return;
     }
     if (comp._cachedStencil) {
         sf::Vector2f pos = Physics::getWorldPos(ent, reg);
-        *ev.stencil = {comp._cachedStencil->position + pos, comp._cachedStencil->size};
+        ev.stencil = {comp._cachedStencil->position + pos, comp._cachedStencil->size};
     }
 }
 
@@ -39,7 +39,7 @@ void UIComp::set_hidden(bool hide, entt::registry& reg, entt::entity ent) {
         [](entt::registry& r, entt::entity e) {
             if (auto* ui = r.try_get<UIComp>(e)) {
                 if (auto* pos = r.try_get<PositionComp>(e)) {
-                    if (auto* parent_ui = r.try_get<UIComp>(pos->parent)) {
+                    if (auto* parent_ui = r.try_get<UIComp>(pos->parent())) {
                         ui->_parentHidden = parent_ui->selfHidden || parent_ui->_parentHidden;
                     }
                 }

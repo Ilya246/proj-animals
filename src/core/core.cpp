@@ -38,6 +38,7 @@ void set_ent_name(entt::entity& ent, entt::registry& reg, std::string_view to) {
 }
 
 void queue_delete(entt::entity ent, entt::registry& reg) {
-    CoreSystem& core = reg.ctx().get<CoreSystem&>();
+    CoreSystem& core = reg.ctx().get<CoreSystem>();
+    raise_local_event(reg, ent, EntityDeleteEvent{});
     core.queueDelete(ent);
 }

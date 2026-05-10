@@ -10,7 +10,15 @@ struct UIPropagateEvent {
     std::function<void(entt::registry&, entt::entity)> action;
 };
 
-struct UIQueryDesiredSizeEvent {
-    sf::Vector2f desiredSize{0.f, 0.f};
-    float availableWidth = -1.f; // -1.f means infinite space
+struct LayoutConstraints {
+    float minWidth = 0.f;
+    float minHeight = 0.f;
+    bool expandX = false;
+    bool expandY = false;
+    float weightX = 1.f;
+    float weightY = 1.f;
+};
+
+struct UIQueryChildEvent {
+    LayoutConstraints& constraints;
 };

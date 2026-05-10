@@ -6,6 +6,8 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Window/WindowEnums.hpp>
 #include "editor/system.hpp"
+#include "utility/entity_builder.hpp"
+#include "utility/geom.hpp"
 #include "yaml-cpp/node/parse.h"
 
 #include "core/events.hpp"
@@ -125,7 +127,7 @@ void spawnBall(entt::registry& registry, entt::entity world) {
     float size_m = math::rand(0.5f, 1.5f);
     sf::Vector2f pos(math::randf(50.f, 750.f), math::randf(50.f, 550.f));
     sf::Vector2f vel(math::randf(-200.f, 200.f), math::randf(-200.f, 200.f));
-    registry.emplace<PositionComp>(ball, pos, world);
+    registry.emplace<PositionComp>(ball, pos).setParent(world, ball, registry);
     registry.emplace<PhysicsComp>(ball, vel, 10.f);
     sf::Vector2f size = sf::Vector2f{32.f, 32.f} * size_m;
     registry.emplace<BoundsComp>(ball, sf::FloatRect{-0.5f * size, size});
@@ -145,7 +147,7 @@ void spawnBall(entt::registry& registry, entt::entity world) {
 
 void genWorld(entt::registry& registry) {
     entt::entity world = registry.create();
-    registry.emplace<PositionComp>(world, sf::Vector2f(0.f, 0.f), world);
+    registry.emplace<PositionComp>(world, sf::Vector2f(0.f, 0.f)).setParent(world, world, registry);
     TileMapComp& mapComp = registry.emplace<TileMapComp>(world, 64, 64, 20.f, &tex_map["tileset_forest"]);
     registry.emplace<RenderableComp>(world, z_world);
     registry.emplace<BoundsComp>(world);
@@ -156,21 +158,21 @@ void genWorld(entt::registry& registry) {
         int x = math::rand(0, mapComp.width - 1);
         int y = math::rand(0, mapComp.height - 1);
 
-        entt::entity wall = registry.create();
-        registry.emplace<PositionComp>(wall, sf::Vector2f(x * 32.f + 16.f, y * 32.f + 16.f), world);
-        registry.emplace<BoundsComp>(wall, sf::FloatRect{{-16.f, -16.f}, {32.f, 32.f}});
-        registry.emplace<ColliderComp>(wall, CollisionLayer::Wall, CollisionLayer::None);
-        registry.emplace<RenderableComp>(wall, z_world + 1);
         sf::Sprite wallSprite(tex_map["wall"]);
         wallSprite.setOrigin(sf::Vector2f(tex_map["wall"].getSize()) / 2.f);
-        registry.emplace<SpriteComp>(wall, wallSprite);
+
+        EntityBuilder{registry, "Wall " + std::to_string(i)}
+            .pos(x * 32.f + 16.f, y * 32.f + 16.f, world)
+            .bounds(-16.f, -16.f, 32.f, 32.f)
+            .collider(CollisionLayer::Wall, CollisionLayer::None)
+            .sprite(std::move(wallSprite));
     }
     // Generate the efficient vertex array
     MapUtil::rebuildMesh(world, mapComp, registry);
 
     // Create a player entity
     entt::entity player = registry.create();
-    registry.emplace<PositionComp>(player, sf::Vector2f(0.f, 0.f), world);
+    registry.emplace<PositionComp>(player, sf::Vector2f(0.f, 0.f)).setParent(world, player, registry);
     registry.emplace<PhysicsComp>(player, sf::Vector2f(0.f, 0.f), 1600.f);
     registry.emplace<BoundsComp>(player, sf::FloatRect{{-16.f, -16.f}, {32.f, 32.f}});
     registry.emplace<InputMovementComp>(player, 600.f, 3000.f);
@@ -183,7 +185,7 @@ void genWorld(entt::registry& registry) {
     registry.emplace<RenderableComp>(player, z_entity);
 
     const auto camera = registry.create();
-    registry.emplace<PositionComp>(camera, sf::Vector2f(0.f, 0.f), player);
+    registry.emplace<PositionComp>(camera, sf::Vector2f(0.f, 0.f)).setParent(player, camera, registry);
     registry.emplace<CameraComp>(camera, 1.f, 0);
     registry.emplace<MainCameraComp>(camera);
 
@@ -203,17 +205,12 @@ void genUI(entt::registry& registry) {
         .posAbsolute({{200.f, 200.f}, {150.f, 300.f}})
         .draggable()
         .rect(sf::Color(30, 30, 50, 100), sf::Color(170, 170, 200, 120), 2.f)
-        .allocatorFull()
+        .allocatorLayout(UILayoutMode::Vertical, 2.f, 2.f, DynamicBounds::full, true)
         .emplace<EditorComp>()
         .buttonToggled(sf::Keyboard::Key::F3);
 
-    UIBuilder topPanel = editorContainer.child("Top Panel")
-        .posAnchor(0.f, 260.f, 1.f, 40.f, {true, false, true, false})
-        .rect(sf::Color(40, 40, 40, 200), sf::Color(100, 100, 100), 1.f)
-        .allocatorLayout(UILayoutMode::Horizontal, 2.f, 2.f, DynamicBounds::full);
-
     UIBuilder selectorPanel = editorContainer.child("Selector Panel")
-        .posAnchor(0.f, 220.f, 1.f, 40.f, {true, false, true, false})
+        .posFill()
         .rect(sf::Color(50, 50, 50, 200), sf::Color(100, 100, 100), 1.f)
         .allocatorLayout(UILayoutMode::Horizontal, 2.f, 2.f, DynamicBounds::full);
 
@@ -224,7 +221,8 @@ void genUI(entt::registry& registry) {
             if (on) std::cout << "Comp Editor ON!\n";
             else std::cout << "Comp Editor OFF!\n";
         })
-        .text("Comp Editor", "hack", 12)
+        .constraint(0.f, 30.f, true, false)
+        .childText("Comp Editor", "hack", 12)
         .get();
 
     entt::entity tbTile = selectorPanel.child("Tile Editor TB")
@@ -234,27 +232,34 @@ void genUI(entt::registry& registry) {
             if (on) std::cout << "Tile Editor ON!\n";
             else std::cout << "Tile Editor OFF!\n";
         })
+        .constraint(0.f, 30.f, true, false)
         .text("Tile Editor", "hack", 12)
         .get();
 
     registry.get<ToggleButtonComp>(tbComp).exclusiveGroup.push_back(tbTile);
     registry.get<ToggleButtonComp>(tbTile).exclusiveGroup.push_back(tbComp);
 
+    UIBuilder topPanel = editorContainer.child("Top Panel")
+        .posFill()
+        .rect(sf::Color(40, 40, 40, 200), sf::Color(100, 100, 100), 1.f)
+        .allocatorLayout(UILayoutMode::Horizontal, 2.f, 2.f, DynamicBounds::full);
+
     auto makeModeButton = [&](const std::string& text, EditorMode mode) {
         topPanel.child(text + " Button")
             .posFill()
             .rect(sf::Color(80, 80, 100, 200), sf::Color(120, 120, 140), 1.f)
             .button([mode](ClickEvent& ev, entt::entity, entt::registry& reg) {
-                auto& sys = reg.ctx().get<EditorSystem&>();
+                auto& sys = reg.ctx().get<EditorSystem>();
                 sys.mode = sys.mode == mode ? EditorMode::None : mode;
                 ev.handled = true;
             })
-            .text(text, "hack", 14)
+            .childText(text, "hack", 14)
+            .constraint(0.f, 30.f, true, false)
             .tooltip("This is the " + text + " mode button.");
     };
 
     makeModeButton("Select", EditorMode::Select);
-    
+
     topPanel.child("Delete Button")
         .posFill()
         .rect(sf::Color(100, 60, 60, 200), sf::Color(140, 120, 120), 1.f)
@@ -265,7 +270,8 @@ void genUI(entt::registry& registry) {
             }
             ev.handled = true;
         })
-        .text("Delete", "hack", 14)
+        .childText("Delete", "hack", 14)
+        .constraint(0.f, 30.f, true, false)
         .tooltip("Deletes the selected entity.");
 
     makeModeButton("Spawn", EditorMode::Spawn);

@@ -32,6 +32,8 @@ struct UIComp {
     // Cache: whether our parent is hidden
     bool _parentHidden = false;
 
+    std::optional<LayoutConstraints> _cachedConstraints = {};
+
     // Offset applied to children's positions during allocation.
     sf::Vector2f childOffset = zeroVec;
     // Encloses all space we have allocated to children. Does not respect child_offset.
@@ -56,6 +58,7 @@ struct UIFullAllocatorComp {
     DynamicBounds bounds = DynamicBounds::full;
 
     HANDLE_EVENT(UIFullAllocatorComp, BoundsResizeEvent)
+    HANDLE_EVENT(UIFullAllocatorComp, UIQueryChildEvent)
 };
 
 // Layout modes for UILayoutComp and similar.
@@ -70,8 +73,10 @@ struct UILayoutComp {
     float padding = 0.f; // inner padding around all children
     float spacing = 0.f; // gap between adjacent children
     DynamicBounds bounds = DynamicBounds::full;
+    bool invertAnchor = false;
 
     HANDLE_EVENT(UILayoutComp, BoundsResizeEvent)
+    HANDLE_EVENT(UILayoutComp, UIQueryChildEvent)
 };
 
 // Lays out child entities in tiled rows.
@@ -82,6 +87,7 @@ struct UITileLayoutComp {
     DynamicBounds bounds = DynamicBounds::full;
 
     HANDLE_EVENT(UITileLayoutComp, BoundsResizeEvent)
+    HANDLE_EVENT(UITileLayoutComp, UIQueryChildEvent)
 };
 
 ///
@@ -101,6 +107,17 @@ struct UIScrollAreaComp {
 
     HANDLE_EVENT(UIScrollAreaComp, ScrollEvent)
     HANDLE_EVENT(UIScrollAreaComp, RenderEvent)
+};
+
+struct UILayoutConstraintComp {
+    float minWidth = 0.f;
+    float minHeight = 0.f;
+    bool expandX = false;
+    bool expandY = false;
+    float weightX = 1.f;
+    float weightY = 1.f;
+
+    HANDLE_EVENT(UILayoutConstraintComp, UIQueryChildEvent)
 };
 
 ///
@@ -142,18 +159,6 @@ struct UIRectComp {
     HANDLE_EVENT(UIRectComp, RenderEvent)
 };
 
-// Similar to UIRectComp, but has a header.
-// TODO: simplify, tie into UIRectComp.
-struct UIWindowComp {
-    sf::Color fillColor = sf::Color::Transparent;
-    sf::Color borderColor = sf::Color::White;
-    sf::Color headerColor = sf::Color::Blue;
-    float borderThickness = 1.f;
-    float headerHeight = 20.f;
-
-    HANDLE_EVENT(UIWindowComp, RenderEvent)
-};
-
 // Can be dragged with the mouse if clicked and held within bounds.
 struct DraggableComp {
     std::optional<DynamicBounds> bounds = {};
@@ -183,6 +188,7 @@ struct TextComp {
 
     HANDLE_EVENT(TextComp, RenderEvent)
     HANDLE_EVENT(TextComp, BoundsResizeEvent)
+    HANDLE_EVENT(TextComp, UIQueryChildEvent)
 
     REGISTER_SERIALIZABLE(TextComp, Text)
 };

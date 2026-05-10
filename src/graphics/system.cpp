@@ -94,7 +94,7 @@ void DrawSystem::update(const UpdateEvent& ev) {
         for (auto [zLevel, entity] : draw) {
             bool cancelled = false;
             std::optional<sf::FloatRect> stencil = std::nullopt;
-            ShouldRenderEvent shouldEv {&cancelled, &stencil};
+            ShouldRenderEvent shouldEv {cancelled, stencil};
             raise_local_event(reg, entity, shouldEv);
             if (cancelled)
                 continue;
@@ -130,7 +130,7 @@ void DrawSystem::update(const UpdateEvent& ev) {
             }
 
             if (!cancel_draw)
-                raise_local_event(reg, entity, RenderEvent{&window});
+                raise_local_event(reg, entity, RenderEvent{window});
 
             if (set_scissor) {
                 view.setScissor(sf::FloatRect{{0.f, 0.f}, {1.f, 1.f}}); // Clean up mask
@@ -146,7 +146,7 @@ void handle_event(RenderEvent& ev, entt::entity ent, SpriteComp& comp, entt::reg
     sf::Vector2f pos = Physics::getWorldPos(ent, reg);
     pos.y *= -1.f;
     comp.sprite.setPosition(pos);
-    ev.window->draw(comp.sprite);
+    ev.window.draw(comp.sprite);
 }
 
 namespace Graphics {

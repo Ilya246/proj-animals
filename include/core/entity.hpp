@@ -1,3 +1,4 @@
+#pragma once
 #include "core/events.hpp"
 #include "core/system.hpp"
 #include <entt/entt.hpp>
@@ -15,4 +16,9 @@ struct CoreSystem : System<CoreSystem> {
         std::vector<entt::entity> delete_queue;
 
         friend void queue_delete(entt::entity ent, entt::registry& reg);
+};
+
+// Fired on an entity just before it is deleted.
+struct EntityDeleteEvent {
+    bool _dummy;
 };

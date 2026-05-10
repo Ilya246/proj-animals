@@ -2,11 +2,11 @@
 #include <SFML/Graphics.hpp>
 
 struct RenderEvent {
-    sf::RenderWindow* window;
+    sf::RenderWindow& window;
 };
 
 struct ShouldRenderEvent {
-    bool* cancelled;
+    bool& cancelled;
     // stencil bounds, in world coordinates
-    std::optional<sf::FloatRect>* stencil;
+    std::optional<sf::FloatRect>& stencil;
 };

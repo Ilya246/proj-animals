@@ -11,7 +11,7 @@ template<>
 void handle_event(RenderEvent& ev, entt::entity, TileMapComp& comp, entt::registry&) {
     sf::RenderStates states;
     states.texture = comp.texture;
-    ev.window->draw(comp.vertices, states);
+    ev.window.draw(comp.vertices, states);
 }
 
 namespace MapUtil {
@@ -78,7 +78,7 @@ sf::Vector2i getTilePos(const sf::Vector2f& pos, float tileSize) {
 TileType getTileAt(const sf::Vector2f& pos, const TileMapComp& map) {
     sf::Vector2i tilePos = getTilePos(pos, map.tileSize);
 
-    if (tilePos.x < 0 || tilePos.x >= map.width || tilePos.y < 0 || tilePos.y >= map.height) 
+    if (tilePos.x < 0 || tilePos.x >= map.width || tilePos.y < 0 || tilePos.y >= map.height)
         return {(uint8_t)-1, (uint8_t)-1}; // invalid
 
     return map.grid[tilePos.x + tilePos.y * map.width];

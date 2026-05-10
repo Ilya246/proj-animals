@@ -23,35 +23,7 @@ void handle_event(RenderEvent& ev, entt::entity ent, UIRectComp& comp, entt::reg
     rect.setFillColor(comp.fillColor);
     rect.setOutlineColor(comp.borderColor);
     rect.setOutlineThickness(comp.borderThickness);
-    ev.window->draw(rect);
-}
-
-template<>
-void handle_event(RenderEvent& ev, entt::entity ent, UIWindowComp& comp, entt::registry& reg) {
-    BoundsComp& bounds = reg.get<BoundsComp>(ent);
-    sf::Vector2f worldPos = Physics::getWorldPos(ent, reg);
-
-    sf::Vector2f bl = worldPos + bounds.bounds.position;
-    sf::Vector2f tr = bl + bounds.bounds.size;
-    bl.y *= -1; tr.y *= -1;
-
-    sf::Vector2f drawSize(tr.x - bl.x - comp.borderThickness * 2, bl.y - tr.y  - comp.borderThickness * 2);
-    sf::Vector2f drawPos(bl.x + comp.borderThickness, tr.y + comp.borderThickness);
-    if (drawSize.x <= 0.f || drawSize.y <= 0.f) return;
-
-    sf::RectangleShape rect(drawSize);
-    rect.setPosition(drawPos);
-    rect.setFillColor(comp.fillColor);
-    rect.setOutlineColor(comp.borderColor);
-    rect.setOutlineThickness(comp.borderThickness);
-    ev.window->draw(rect);
-
-    if (comp.headerHeight > 0.f) {
-        sf::RectangleShape header(sf::Vector2f(drawSize.x, comp.headerHeight));
-        header.setPosition(drawPos);
-        header.setFillColor(comp.headerColor);
-        ev.window->draw(header);
-    }
+    ev.window.draw(rect);
 }
 
 template<>
@@ -94,8 +66,7 @@ size_t wrapText(std::string string, sf::Text& text, float maxWidth) {
     return newlines;
 }
 
-template<>
-void handle_event(BoundsResizeEvent& ev, entt::entity, TextComp& comp, entt::registry&) {
+void set_text(sf::FloatRect bounds, TextComp& comp) {
     if (!comp.wrap) return;
 
     // Capture the original string the first time we wrap
@@ -104,11 +75,27 @@ void handle_event(BoundsResizeEvent& ev, entt::entity, TextComp& comp, entt::reg
 
     if (comp.originalString.empty()) return;
 
-    if (ev.newBounds.size.x <= 0.f) return;
+    if (bounds.size.x <= 0.f) return;
 
-    float maxWidth = ev.newBounds.size.x;
+    float maxWidth = bounds.size.x;
 
     wrapText(comp.originalString, comp.text, maxWidth);
+}
+
+template<>
+void handle_event(BoundsResizeEvent& ev, entt::entity, TextComp& comp, entt::registry&) {
+    set_text(ev.newBounds, comp);
+}
+
+template<>
+void handle_event(UIQueryChildEvent& ev, entt::entity ent, TextComp& comp, entt::registry& reg) {
+    sf::FloatRect bSize = reg.get<BoundsComp>(ent).bounds;
+    if (bSize.size.x <= 0.f)
+        bSize = sf::FloatRect{{0.f, 0.f}, {2e16f, 2e16f}};
+    set_text(bSize, comp);
+    sf::FloatRect bounds = comp.text.getLocalBounds();
+    ev.constraints.minWidth = std::max(ev.constraints.minWidth, bounds.position.x + bounds.size.x);
+    ev.constraints.minHeight = std::max(ev.constraints.minHeight, (float)comp.text.getCharacterSize());
 }
 
 template<>
@@ -120,7 +107,7 @@ void handle_event(RenderEvent& ev, entt::entity ent, TextComp& comp, entt::regis
     }
     pos.y *= -1.f; // convert to draw-coordinates
     comp.text.setPosition(pos);
-    ev.window->draw(comp.text);
+    ev.window.draw(comp.text);
 }
 
 template<>
@@ -155,7 +142,7 @@ void handle_event(RenderEvent& ev, entt::entity ent, UIScrollAreaComp& comp, ent
     rect.setFillColor(comp.innerColor);
     rect.setOutlineColor(comp.outlineColor);
     rect.setOutlineThickness(comp.outlineThickness);
-    ev.window->draw(rect);
+    ev.window.draw(rect);
 
     float scrollY = scrollMaxY * innerBounds.size.y * scrollFraction;
     float scrollSizeY = innerBounds.size.y * ratio;
@@ -166,19 +153,19 @@ void handle_event(RenderEvent& ev, entt::entity ent, UIScrollAreaComp& comp, ent
     bar.setPosition(barPos);
     bar.setFillColor(comp.barColor);
     bar.setOutlineThickness(0.f);
-    ev.window->draw(bar);
+    ev.window.draw(bar);
 }
 
 template<>
 void handle_event(ClickEvent& ev, entt::entity ent, ToggleButtonComp& comp, entt::registry& reg) {
     if (!ev.pressed) return;
-    
+
     comp.isToggled = !comp.isToggled;
     if (auto* rect = reg.try_get<UIRectComp>(ent)) {
         rect->fillColor = comp.isToggled ? comp.onColor : comp.offColor;
     }
     if (comp.cb) comp.cb(comp.isToggled, ent, reg);
-    
+
     if (comp.isToggled) {
         for (auto exEnt : comp.exclusiveGroup) {
             if (reg.valid(exEnt) && exEnt != ent) {

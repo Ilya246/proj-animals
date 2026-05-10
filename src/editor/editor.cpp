@@ -50,7 +50,7 @@ void handle_event(RenderEvent& ev, entt::entity ent, EditorSelectedComp&, entt::
     rect.setOutlineColor(sf::Color::Yellow);
     rect.setOutlineThickness(2.f);
 
-    ev.window->draw(rect);
+    ev.window.draw(rect);
 }
 
 void EditorSystem::init(entt::registry& reg) {
@@ -105,7 +105,7 @@ void EditorSystem::onGlobalClick(const GlobalClickEvent& ev) {
             if (bad) return;
 
             entt::entity newEnt = ev.registry->create();
-            ev.registry->emplace<PositionComp>(newEnt, worldClickPos, worldEnt);
+            ev.registry->emplace<PositionComp>(newEnt, worldClickPos).setParent(edWorld, newEnt, *ev.registry);
             ev.registry->emplace<RenderableComp>(newEnt, z_entity);
             ev.registry->emplace<BoundsComp>(newEnt, sf::FloatRect{{-16.f, -16.f}, {32.f, 32.f}});
 

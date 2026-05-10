@@ -43,19 +43,18 @@ void UISystem::update(const UpdateEvent& ev) {
             if (hover.hoverTime >= tooltip.threshold && !ev.registry->valid(tooltip.spawnedTooltip)) {
                 entt::entity world = Physics::getWorld(entity, *ev.registry);
                 if (!ev.registry->valid(world)) continue;
-                
-                sf::FloatRect ttBounds{hover.lastWorldCoords + sf::Vector2f(12.f, -12.f), {150.f, 60.f}};
 
-                entt::entity tooltipEnt = UIBuilder(*ev.registry, world, "Tooltip")
+                sf::FloatRect ttBounds{hover.lastWorldCoords + sf::Vector2f(12.f, -212.f), {100.f, 200.f}};
+
+                UIBuilder tooltipEnt = UIBuilder(*ev.registry, world, "Tooltip")
                     .posAbsolute(ttBounds)
-                    .zIndex(z_ui + 100)
+                    .zIndex(z_ui + 1024)
                     .rect(sf::Color(20, 20, 20, 230), sf::Color(200, 200, 200), 1.f)
-                    .text(tooltip.text, "hack", 12, sf::Color::White, true)
-                    .get();
-                
+                    .childText(tooltip.text, "hack", 12, sf::Color::White, true);
+
                 auto& bounds = ev.registry->get<BoundsComp>(tooltipEnt);
-                bounds.resize(bounds.bounds, tooltipEnt, *ev.registry);
-                
+                bounds.resize({{0.f, 0.f}, {100.f, 200.f}}, tooltipEnt, *ev.registry);
+
                 tooltip.spawnedTooltip = tooltipEnt;
             }
         }

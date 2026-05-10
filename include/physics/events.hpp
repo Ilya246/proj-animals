@@ -3,7 +3,7 @@
 #include <SFML/Graphics/Rect.hpp>
 
 struct GetDragEvent {
-    float* drag;
+    float& drag;
 };
 
 struct BoundsResizeEvent {

@@ -46,14 +46,14 @@ void InputSystem::update(const UpdateEvent& ev) {
         raise_local_event(*ev.registry, entity, iEv);
     }
 
-    sf::RenderWindow& window = ev.registry->ctx().get<sf::RenderWindow&>();
+    sf::RenderWindow& window = ev.registry->ctx().get<sf::RenderWindow>();
     if (window.hasFocus()) {
         sf::Vector2i mousePos = sf::Mouse::getPosition(window);
         bool handled = false;
         GlobalHoverEvent hEv{mousePos, ev.registry, &handled};
         uint64_t currentTick = ev.registry->ctx().get<uint64_t>();
 
-        Input::handle_mouse_event<HoverEvent, HoverListenerComp, GlobalHoverEvent, true>(hEv, 
+        Input::handle_mouse_event<HoverEvent, HoverListenerComp, GlobalHoverEvent, true>(hEv,
             [&](sf::Vector2f relPos, sf::Vector2f globalPos, entt::entity ent, bool* handled) {
                 raise_local_event(*ev.registry, ent, HoverEvent{mousePos, relPos, globalPos, ev.dt, currentTick, *handled});
             });
@@ -64,7 +64,7 @@ namespace Input {
     sf::Vector2f get_cam_mouse_pos(sf::Vector2i screenPos, entt::entity camera, entt::registry& reg) {
         CameraComp& cam = reg.get<CameraComp>(camera);
         sf::Vector2f camOrigin = cam.view.getCenter() - cam.view.getSize() * 0.5f;
-        sf::Vector2f windowSize = (sf::Vector2f)reg.ctx().get<sf::RenderWindow&>().getSize();
+        sf::Vector2f windowSize = (sf::Vector2f)reg.ctx().get<sf::RenderWindow>().getSize();
         sf::Vector2f viewSize = cam.view.getSize();
         float scaleX = viewSize.x / windowSize.x;
         float scaleY = viewSize.y / windowSize.y;
@@ -99,7 +99,7 @@ void InputSystem::receiveScroll(const GlobalScrollEvent& ev) {
 template<>
 void handle_event(GetDragEvent& ev, entt::entity, InputMovementComp& comp, entt::registry&) {
     if (comp.lastInput != zeroVec)
-        *ev.drag = 0.f;
+        ev.drag = 0.f;
 }
 
 template<>
