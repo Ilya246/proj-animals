@@ -8,7 +8,7 @@ struct UISystem : System<UISystem> {
 
     private:
         virtual void init(entt::registry&) override;
-        virtual int initPriority() override { return -16; };
+        virtual int initPriority() override { return 32; };
 
         void update(const UpdateEvent&);
         void onScreenResize(const ScreenResizeEvent&);
@@ -16,3 +16,7 @@ struct UISystem : System<UISystem> {
         void onGlobalKeyPress(const KeyPressEvent&);
         void onGlobalTextEntered(const GlobalTextEnteredEvent&);
 };
+
+namespace UI {
+    void rebuild(entt::entity node, entt::registry& reg);
+}

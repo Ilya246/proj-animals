@@ -61,6 +61,40 @@ void UISystem::update(const UpdateEvent& ev) {
             }
         }
     }
+
+    // Dropdown autoclose and hover-trigger logic
+    auto ddView = ev.registry->view<DropdownTriggerComp>();
+    for (auto [entity, dd] : ddView.each()) {
+        if (!ev.registry->valid(dd.spawnedList) && dd.openOnHover) {
+            // Check hover open
+            if (auto* h = ev.registry->try_get<HoverListenerComp>(entity)) {
+                if (h->lastHoverTick + 1 >= currentTick && h->hoverTime >= dd.hoverThreshold) {
+                    entt::entity world = Physics::getWorld(entity, *ev.registry);
+                    dd.spawnedList = dd.buildList(*ev.registry, world, entity);
+                }
+            }
+        }
+    }
+
+    auto colView = ev.registry->view<CloseOnLeaveComp, HoverListenerComp>();
+    for (auto [entity, col, hover] : colView.each()) {
+        bool overTrigger = false;
+        if (ev.registry->valid(col.triggerEntity)) {
+            if (auto* trigHover = ev.registry->try_get<HoverListenerComp>(col.triggerEntity)) {
+                overTrigger = (trigHover->lastHoverTick + 1 >= currentTick);
+            }
+        }
+        bool overSelf = (hover.lastHoverTick + 1 >= currentTick);
+
+        if (!overTrigger && !overSelf) {
+            col.hoverTime += ev.dt;
+            if (col.hoverTime >= col.threshold) {
+                queue_delete(entity, *ev.registry);
+            }
+        } else {
+            col.hoverTime = 0.f;
+        }
+    }
 }
 
 void UISystem::onScreenResize(const ScreenResizeEvent& ev) {
@@ -229,7 +263,6 @@ void UISystem::onGlobalKeyPress(const KeyPressEvent& ev) {
                         }
                         tb->selectionEnd = cursorPos;
                     }
-                    tb->viewPos = std::min(cursorPos, tb->viewPos);
                     tb->stringChanged(width);
                     break;
                 }
@@ -311,5 +344,34 @@ void UISystem::onGlobalKeyPress(const KeyPressEvent& ev) {
     for (auto [entity, toggled, ui] : triggerView.each()) {
         if (ev.key == toggled.triggerKey)
             ui.set_hidden(!ui.selfHidden, *ev.registry, entity);
+    }
+}
+
+namespace UI {
+    static void clear_caches(entt::entity node, entt::registry& reg) {
+        UIComp& ui = reg.get<UIComp>(node);
+        ui._cachedConstraints.reset();
+        for (auto child : ui.children) {
+            if (reg.valid(child)) {
+                clear_caches(child, reg);
+            }
+        }
+    }
+
+    void rebuild(entt::entity node, entt::registry& reg) {
+        entt::entity root = node;
+        while (reg.valid(root)) {
+            PositionComp& pos = reg.get<PositionComp>(root);
+            entt::entity parent = pos.parent();
+            if (!reg.valid(parent) || parent == root || !reg.try_get<UIComp>(parent)) {
+                break;
+            }
+            root = parent;
+        }
+
+        clear_caches(root, reg);
+
+        BoundsComp& bounds = reg.get<BoundsComp>(root);
+        bounds.resize(bounds.bounds, root, reg);
     }
 }

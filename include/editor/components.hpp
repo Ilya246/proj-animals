@@ -19,3 +19,12 @@ struct EditorSelectedComp {
 struct EditorComp {
     bool _dummy;
 };
+
+struct ComponentEditorUIComp {
+    entt::entity targetEntity = entt::null;
+    std::string selectedComponent = "";
+    std::string lastSelectedComponent = "";
+
+    entt::entity paramListContainer = entt::null;
+    std::unordered_map<std::string, entt::entity> paramBoxes = {};
+};

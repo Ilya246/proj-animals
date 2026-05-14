@@ -97,8 +97,8 @@ struct UIBuilder {
         return emplace<UIFullAllocatorComp>();
     }
 
-    UIBuilder& allocatorLayout(UILayoutMode mode, float padding = 0.f, float spacing = 0.f, DynamicBounds bounds = DynamicBounds::full, bool invertAnchor = false) {
-        return emplace<UILayoutComp>(mode, padding, spacing, bounds, invertAnchor);
+    UIBuilder& allocatorLayout(UILayoutMode mode, float padding = 0.f, float spacing = 0.f, DynamicBounds bounds = DynamicBounds::full, bool invertAnchor = false, bool allowOverflow = false) {
+        return emplace<UILayoutComp>(mode, padding, spacing, bounds, invertAnchor, allowOverflow);
     }
 
     UIBuilder& allocatorTile(sf::Vector2f tileSize, float padding = 0.f, float spacing = 0.f, DynamicBounds bounds = DynamicBounds::full) {
@@ -146,12 +146,14 @@ struct UIBuilder {
         return allocatorFull();
     }
 
-    UIBuilder& childTextbox(const std::string& font, unsigned int size, sf::Color color = sf::Color::White, std::function<void(std::string_view, entt::entity, entt::registry&)>&& cb = {}) {
-        UIBuilder{reg, ent, "TextBox"}
+    // Gives us a child textbox.
+    // Returns a builder for the textbox.
+    UIBuilder childTextbox(const std::string& font, unsigned int size, sf::Color color = sf::Color::White, std::function<void(std::string_view, entt::entity, entt::registry&)>&& cb = {}) {
+        allocatorFull();
+
+        return UIBuilder{reg, ent, "TextBox"}
             .textbox(font, size, color, std::move(cb))
             .posFill();
-
-        return allocatorFull();
     }
 
     UIBuilder& button(std::function<void(ClickEvent&, entt::entity, entt::registry&)>&& cb) {
@@ -188,5 +190,11 @@ struct UIBuilder {
 
     UIBuilder& tooltip(const std::string& text, float threshold = 0.5f) {
         return emplace<HoverListenerComp>().emplace<TooltipProviderComp>(text, threshold);
+    }
+
+    UIBuilder& dropdownTrigger(std::function<entt::entity(entt::registry&, entt::entity, entt::entity)> builder, bool openOnHover = false, float hoverThreshold = 0.5f) {
+        return emplace<DropdownTriggerComp>(std::move(builder), entt::null, openOnHover, hoverThreshold)
+               .ensure<ClickListenerComp>()
+               .ensure<HoverListenerComp>();
     }
 };

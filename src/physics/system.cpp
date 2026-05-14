@@ -8,7 +8,9 @@
 #include "entt/entity/fwd.hpp"
 #include "physics/components.hpp"
 #include "physics/events.hpp"
+#include "utility/utility.hpp"
 #include "physics/system.hpp"
+#include "utility/formatters.hpp" // IWYU pragma: keep
 
 void PhysicsSystem::init(entt::registry& reg) {
     subscribe_global_event<UpdateEvent, &PhysicsSystem::update>(reg, this);
@@ -227,6 +229,9 @@ void PhysicsSystem::update(const UpdateEvent& ev) {
 }
 
 void BoundsComp::resize(const sf::FloatRect& newBounds, entt::entity e, entt::registry& reg) {
+    exec_debug([&]() {
+        std::cout << std::format("[DBG] Resizing ent {} from {} to {}.", get_ent_name(e, reg), bounds, newBounds) << std::endl;
+    });
     bounds = newBounds;
     raise_local_event(reg, e, BoundsResizeEvent{newBounds});
 }
@@ -253,9 +258,9 @@ entt::entity PositionComp::parent() const {
 void PositionComp::setParent(entt::entity to, entt::entity self, entt::registry& reg) {
     if (_parent != self && reg.valid(_parent)) {
         PositionComp& ppos = reg.get<PositionComp>(_parent);
-        auto at = std::find(ppos.children.begin(), ppos.children.end(), to);
+        auto at = std::find(ppos.children.begin(), ppos.children.end(), self);
         if (at == ppos.children.end())
-            throw std::runtime_error(std::format("Found invalid-parented entity {}: parented to {}, but not in child list", get_ent_name(self, reg), get_ent_name(to, reg)));
+            throw std::runtime_error(std::format("Found invalid-parented entity {}: parented to {}, but not in child list", get_ent_name(self, reg), get_ent_name(_parent, reg)));
         ppos.children.erase(at);
     }
 
@@ -266,10 +271,12 @@ void PositionComp::setParent(entt::entity to, entt::entity self, entt::registry&
 }
 
 template<>
-void handle_event(EntityDeleteEvent&, entt::entity, PositionComp& comp, entt::registry& reg) {
-    for (entt::entity ch : comp.children) {
+void handle_event(EntityDeleteEvent&, entt::entity ent, PositionComp& comp, entt::registry& reg) {
+    std::vector<entt::entity> children = comp.children; // copy because children will modify it
+    for (entt::entity ch : children) {
         queue_delete(ch, reg);
     }
+    comp.setParent(ent, ent, reg); // set parent to self to clear children lists
 }
 
 namespace Physics {

@@ -111,11 +111,15 @@ void handle_event(RenderEvent& ev, entt::entity ent, TextComp& comp, entt::regis
     ev.window.draw(comp.text);
 }
 
-static size_t fitText(const std::string& str, sf::Text& text, float maxWidth) {
+static size_t fitText(std::string str, sf::Text& text, float maxWidth) {
     text.setString(str);
     if (maxWidth <= 0.f) return str.size();
     float startX = text.findCharacterPos(0).x;
     for (size_t i = 0; i < str.size(); i++) {
+        if (str[i] == '\n') {
+            str[i] = ' ';
+            text.setString(str);
+        }
         if (text.findCharacterPos(i).x - startX > maxWidth) {
             text.setString(str.substr(0, i));
             return str.size() - i;
@@ -142,7 +146,10 @@ void TextBoxComp::stringChanged(float width) {
     if (content.size() > 0) {
         sub = content.substr(viewPos);
         cursorPos = std::min(cursorPos, content.size());
-        viewPos = std::min(std::max(cursorPos, lastCharsFit) - lastCharsFit, viewPos);
+        // cursor should be in [viewPos, viewPos + lastCharsFit]
+        size_t offs = lastCharsFit > cursorPos ? 0 : cursorPos - lastCharsFit;
+        if (offs != cursorPos)
+            viewPos = std::clamp(viewPos, offs, cursorPos);
     } else {
         sub = "";
         cursorPos = 0;
@@ -202,8 +209,9 @@ void handle_event(BoundsResizeEvent& ev, entt::entity, TextBoxComp& comp, entt::
 
 template<>
 void handle_event(UIQueryChildEvent& ev, entt::entity, TextBoxComp& comp, entt::registry&) {
-    ev.constraints.minWidth = std::max(ev.constraints.minWidth, 50.f);
-    ev.constraints.minHeight = std::max(ev.constraints.minHeight, (float)comp.text.getCharacterSize() + 4.f);
+    sf::Vector2f bound = comp.text.getGlobalBounds().size;
+    ev.constraints.minWidth = std::max(ev.constraints.minWidth, bound.x);
+    ev.constraints.minHeight = std::max(ev.constraints.minHeight, bound.y);
 }
 
 template<>
@@ -233,7 +241,14 @@ void handle_event(RenderEvent& ev, entt::entity ent, TextBoxComp& comp, entt::re
         }
     }
 
+    std::string wasContent = comp.text.getString();
+    std::string newContent = wasContent;
+    for (size_t i = 0; i < wasContent.size(); ++i) {
+        if (newContent[i] == '\n') newContent[i] = ' ';
+    }
+    comp.text.setString(newContent);
     ev.window.draw(comp.text);
+    comp.text.setString(wasContent);
 
     if (sys.activeTextbox == ent) {
         uint64_t ticks = reg.ctx().get<uint64_t>();
@@ -318,6 +333,23 @@ void handle_event(ClickEvent& ev, entt::entity ent, ToggleButtonComp& comp, entt
                 }
             }
         }
+    }
+    ev.handled = true;
+}
+
+template<>
+void handle_event(ClickEvent& ev, entt::entity ent, DropdownTriggerComp& comp, entt::registry& reg) {
+    if (!ev.pressed) return;
+    if (!reg.valid(comp.spawnedList)) {
+        auto [world, pos] = Physics::getWorldAndPos(ent, reg);
+        comp.spawnedList = comp.buildList(reg, world, ent);
+        UI::rebuild(comp.spawnedList, reg);
+        PositionComp& posc = reg.get<PositionComp>(comp.spawnedList);
+        BoundsComp& bounds = reg.get<BoundsComp>(comp.spawnedList);
+        posc.position = pos - sf::Vector2f{0.f, bounds.bounds.size.y};
+    } else {
+        queue_delete(comp.spawnedList, reg);
+        comp.spawnedList = entt::null;
     }
     ev.handled = true;
 }

@@ -16,7 +16,7 @@ struct EnttEntitySerializationHelper {
 
     entt::entity to_class() const noexcept {
         exec_debug([&]{ if (!entity_id_ser_map.contains(id)) std::cout << "[WARN]: requested serialization entity id mapping for " << id << ", but none found"; });
-        return entity_id_ser_map.at(id);
+        return entity_id_ser_map.contains(id) ? entity_id_ser_map.at(id) : entt::entity(id);
     }
 };
 

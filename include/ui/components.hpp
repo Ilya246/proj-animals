@@ -74,10 +74,12 @@ struct UILayoutComp {
     float spacing = 0.f; // gap between adjacent children
     DynamicBounds bounds = DynamicBounds::full;
     bool invertAnchor = false;
+    bool allowOverflow = false;
 
     HANDLE_EVENT(UILayoutComp, BoundsResizeEvent)
     HANDLE_EVENT(UILayoutComp, UIQueryChildEvent)
 };
+
 
 // Lays out child entities in tiled rows.
 struct UITileLayoutComp {
@@ -232,4 +234,20 @@ struct TooltipProviderComp {
     std::string text;
     float threshold = 0.5f;
     entt::entity spawnedTooltip = entt::null;
+};
+
+struct DropdownTriggerComp {
+    std::function<entt::entity(entt::registry&, entt::entity world, entt::entity trigger)> buildList;
+    entt::entity spawnedList = entt::null;
+    bool openOnHover = false;
+    float hoverThreshold = 0.5f;
+
+    HANDLE_EVENT(DropdownTriggerComp, ClickEvent)
+};
+
+// Automatically queue_delete itself if mouse is outside self and the trigger
+struct CloseOnLeaveComp {
+    float threshold = 0.2f;
+    entt::entity triggerEntity = entt::null;
+    float hoverTime = 0.f;
 };

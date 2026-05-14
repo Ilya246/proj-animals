@@ -7,7 +7,9 @@
 #include "physics/system.hpp"
 #include "input/system.hpp"
 #include "graphics/texture.hpp"
+#include "ui/builder.hpp"
 #include "ui/components.hpp"
+#include "ui/system.hpp"
 
 entt::entity get_editor(entt::registry& reg) {
     auto edView = reg.view<EditorComp>();
@@ -57,6 +59,7 @@ void handle_event(RenderEvent& ev, entt::entity ent, EditorSelectedComp&, entt::
 
 void EditorSystem::init(entt::registry& reg) {
     subscribe_global_event<GlobalClickEvent, &EditorSystem::onGlobalClick>(reg, this);
+    subscribe_global_event<UpdateEvent, &EditorSystem::update>(reg, this);
 }
 
 void EditorSystem::onGlobalClick(const GlobalClickEvent& ev) {
@@ -107,7 +110,7 @@ void EditorSystem::onGlobalClick(const GlobalClickEvent& ev) {
             if (bad) return;
 
             entt::entity newEnt = ev.registry->create();
-            ev.registry->emplace<PositionComp>(newEnt, worldClickPos).setParent(edWorld, newEnt, *ev.registry);
+            ev.registry->emplace<PositionComp>(newEnt, worldClickPos).setParent(worldEnt, newEnt, *ev.registry);
             ev.registry->emplace<RenderableComp>(newEnt, z_entity);
             ev.registry->emplace<BoundsComp>(newEnt, sf::FloatRect{{-16.f, -16.f}, {32.f, 32.f}});
 
@@ -123,6 +126,120 @@ void EditorSystem::onGlobalClick(const GlobalClickEvent& ev) {
             ev.registry->emplace<EditorSelectedComp>(newEnt);
 
             *ev.handled = true;
+        }
+    }
+}
+
+void EditorSystem::update(const UpdateEvent& ev) {
+    entt::registry& reg = *ev.registry;
+
+    entt::entity selectedEnt = entt::null;
+    for (auto [e, esc] : reg.view<EditorSelectedComp>().each()) {
+        selectedEnt = e;
+        break;
+    }
+
+    auto view = reg.view<ComponentEditorUIComp>();
+    for (auto [entity, ce] : view.each()) {
+        if (ce.targetEntity != selectedEnt) {
+            ce.targetEntity = selectedEnt;
+            ce.selectedComponent = "";
+        }
+
+        if (!reg.valid(ce.paramListContainer)) continue;
+
+        if (ce.selectedComponent != ce.lastSelectedComponent) {
+            auto& containerUI = reg.get<UIComp>(ce.paramListContainer);
+            for (auto child : containerUI.children) {
+                queue_delete(child, reg);
+            }
+            containerUI.children.clear();
+            ce.paramBoxes.clear();
+
+            if (!ce.selectedComponent.empty() && reg.valid(ce.targetEntity)) {
+                auto nodeOpt = ComponentSerializer::serialize(ce.selectedComponent, reg, ce.targetEntity);
+                if (nodeOpt && nodeOpt->IsMap()) {
+                    YAML::Node node = *nodeOpt;
+                    for (auto it = node.begin(); it != node.end(); ++it) {
+                        std::string key = it->first.as<std::string>();
+
+                        UIBuilder rowContainer(reg, ce.paramListContainer, "Param Row " + key);
+                        rowContainer.allocatorLayout(UILayoutMode::Horizontal, 0.f, 2.f)
+                                    .posFill()
+                                    .constraint(0.f, 24.f, true, false);
+
+                        rowContainer.child(key + ": Label")
+                            .text(key + ":", "hack", 12)
+                            .posFill()
+                            .constraint(80.f, 20.f, false, false);
+
+                        UIBuilder tb = rowContainer.child(key + ": Textbox")
+                            .textbox("hack", 12, sf::Color::White,
+                            [compName = ce.selectedComponent, key](std::string_view text, entt::entity, entt::registry& r) {
+                                auto v = r.view<ComponentEditorUIComp>();
+                                if (v.empty()) return;
+                                auto& compEd = r.get<ComponentEditorUIComp>(v.front());
+                                if (!r.valid(compEd.targetEntity)) return;
+
+                                auto nOpt = ComponentSerializer::serialize(compName, r, compEd.targetEntity);
+                                if (!nOpt) return;
+                                YAML::Node n = *nOpt;
+                                try {
+                                    n[key] = YAML::Load(std::string(text));
+                                    ComponentSerializer::deserialize(compName, n, compEd.targetEntity, &r);
+                                } catch (const std::exception& e) {
+                                    std::cout << "[Editor] Failed to parse parameter update: " << e.what() << "\n";
+                                }
+                            })
+                            .posFill()
+                            .rect(sf::Color(20, 20, 20), sf::Color(100, 100, 100), 1.f)
+                            .constraint(60.f, 20.f, true, false);
+
+                        ce.paramBoxes[key] = tb;
+                    }
+                } else {
+                    ce.selectedComponent = "";
+                }
+            }
+
+            ce.lastSelectedComponent = ce.selectedComponent;
+            UI::rebuild(ce.paramListContainer, reg);
+        } else if (!ce.selectedComponent.empty() && reg.valid(ce.targetEntity)) {
+            // Update live values every frame
+            auto nodeOpt = ComponentSerializer::serialize(ce.selectedComponent, reg, ce.targetEntity);
+            if (!nodeOpt) {
+                ce.selectedComponent = ""; // Component got removed
+                continue;
+            }
+            YAML::Node node = *nodeOpt;
+            auto& uiSys = reg.ctx().get<UISystem>();
+
+            if (node.IsMap()) {
+                for (auto it = node.begin(); it != node.end(); ++it) {
+                    std::string key = it->first.as<std::string>();
+                    if (!ce.paramBoxes.contains(key)) continue;
+
+                    entt::entity tbEnt = ce.paramBoxes[key];
+                    if (tbEnt == uiSys.activeTextbox) continue; // Skip live updates for fields currently focused
+
+                    std::string valStr;
+                    if (it->second.IsScalar()) valStr = it->second.as<std::string>();
+                    else {
+                        valStr = YAML::Dump(it->second);
+                        if (!valStr.empty() && valStr.back() == '\n') valStr.pop_back();
+                    }
+
+                    auto& tbComp = reg.get<TextBoxComp>(tbEnt);
+                    if (tbComp.content != valStr) {
+                        tbComp.content = valStr;
+                        if (auto* bounds = reg.try_get<BoundsComp>(tbEnt)) {
+                            tbComp.stringChanged(bounds->bounds.size.x);
+                        } else {
+                            tbComp.stringChanged(0.f);
+                        }
+                    }
+                }
+            }
         }
     }
 }

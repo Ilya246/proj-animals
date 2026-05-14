@@ -11,13 +11,13 @@
 #include "serialization_entt.hpp" // IWYU pragma: keep
 #include "serialization_sfml.hpp" // IWYU pragma: keep
 
-struct NonSerializableComp {
-    bool dummy; // entt can't have empty comps
-};
-
 template<typename T>
 struct PostDeserialize {
     // static void exec(entt::entity e, T& comp, entt::registry* r);
+};
+
+struct NonSerializableComp {
+    bool dummy; // entt can't have empty comps
 };
 
 template<typename T>
@@ -33,7 +33,7 @@ struct ComponentSerializer {
         registry.deserialize[name] = [name](const YAML::Node& node, entt::entity e, entt::registry* r) {
             auto result = rfl::yaml::read<T, rfl::UnderlyingEnums>(node);
             if (result) {
-                r->emplace<T>(e, std::move(*result));
+                r->emplace_or_replace<T>(e, std::move(*result));
                 if constexpr (HasPostDeserializeExec<T>) {
                     PostDeserialize<T>::exec(e, r->get<T>(e), r);
                 }
@@ -49,40 +49,31 @@ struct ComponentSerializer {
             return {};
         };
 
+        registry.remove[name] = [](entt::registry& r, entt::entity e) {
+            r.remove<T>(e);
+        };
+
         registry.type_names.push_back(name);
         return true;
     }
 
-    static void deserialize(const std::string& name, const YAML::Node& yaml_str,
-                           entt::entity e, entt::registry* r) {
-        Registry& registry = get_registry();
-        if (auto it = registry.deserialize.find(name); it != registry.deserialize.end()) {
-            it->second(yaml_str, e, r);
-        }
-    }
+    static void deserialize(const std::string& name, const YAML::Node& yaml_str, entt::entity e, entt::registry* r);
 
-    static std::optional<YAML::Node> serialize(const std::string& name, entt::registry& r, entt::entity e) {
-        Registry& registry = get_registry();
-        if (auto it = registry.serialize.find(name); it != registry.serialize.end()) {
-            return it->second(r, e);
-        }
-        return {};
-    }
+    static std::optional<YAML::Node> serialize(const std::string& name, entt::registry& r, entt::entity e);
 
-    static const std::vector<std::string>& get_registered_types() {
-        return get_registry().type_names;
-    }
+    // Remove component from entity by name
+    static void remove(const std::string& name, entt::registry& r, entt::entity e);
+
+    static const std::vector<std::string>& get_registered_types();
 
     struct Registry {
         std::unordered_map<std::string, std::function<void(const YAML::Node&, entt::entity, entt::registry*)>> deserialize;
         std::unordered_map<std::string, std::function<std::optional<YAML::Node>(entt::registry&, entt::entity)>> serialize;
+        std::unordered_map<std::string, std::function<void(entt::registry&, entt::entity)>> remove;
         std::vector<std::string> type_names;
     };
 
-    static Registry& get_registry() {
-        static Registry registry;
-        return registry;
-    }
+    static Registry& get_registry();
 };
 
 #define REGISTER_SERIALIZABLE(Type, Name) \

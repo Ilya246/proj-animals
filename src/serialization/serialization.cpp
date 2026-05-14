@@ -72,3 +72,34 @@ void deserialize_registry(const YAML::Node& root, entt::registry& reg) {
     }
     entity_id_ser_map.clear();
 }
+
+void ComponentSerializer::deserialize(const std::string& name, const YAML::Node& yaml_str, entt::entity e, entt::registry* r) {
+    Registry& registry = get_registry();
+    if (auto it = registry.deserialize.find(name); it != registry.deserialize.end()) {
+        it->second(yaml_str, e, r);
+    }
+}
+
+std::optional<YAML::Node> ComponentSerializer::serialize(const std::string& name, entt::registry& r, entt::entity e) {
+    Registry& registry = get_registry();
+    if (auto it = registry.serialize.find(name); it != registry.serialize.end()) {
+        return it->second(r, e);
+    }
+    return {};
+}
+
+void ComponentSerializer::remove(const std::string& name, entt::registry& r, entt::entity e) {
+    Registry& registry = get_registry();
+    if (auto it = registry.remove.find(name); it != registry.remove.end()) {
+        it->second(r, e);
+    }
+}
+
+const std::vector<std::string>& ComponentSerializer::get_registered_types() {
+    return get_registry().type_names;
+}
+
+ComponentSerializer::Registry& ComponentSerializer::get_registry() {
+    static Registry registry;
+    return registry;
+}

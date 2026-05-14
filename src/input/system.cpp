@@ -8,6 +8,7 @@
 #include "physics/components.hpp"
 #include "physics/events.hpp"
 #include "input/system.hpp"
+#include "ui/system.hpp"
 #include "world/components.hpp"
 
 void InputSystem::init(entt::registry& reg) {
@@ -17,33 +18,37 @@ void InputSystem::init(entt::registry& reg) {
 }
 
 void InputSystem::update(const UpdateEvent& ev) {
-    auto view = ev.registry->view<InputMovementComp, PhysicsComp>();
-    for (auto [entity, mover, vel] : view.each()) {
-        // Player input (arrow keys)
-        sf::Vector2i input(0, 0);
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left))
-            input.x = -1;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right))
-            input.x = 1;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up))
-            input.y = 1;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down))
-            input.y = -1;
+    // TODO: decouple this
+    UISystem& ui = ev.registry->ctx().get<UISystem>();
+    if (!ev.registry->valid(ui.activeTextbox)) {
+        auto view = ev.registry->view<InputMovementComp, PhysicsComp>();
+        for (auto [entity, mover, vel] : view.each()) {
+            // Player input (arrow keys)
+            sf::Vector2i input(0, 0);
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left))
+                input.x = -1;
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right))
+                input.x = 1;
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up))
+                input.y = 1;
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down))
+                input.y = -1;
 
-        mover.lastInput = (sf::Vector2f)input;
-        if (input.x == 0 && input.y == 0)
-            continue;
+            mover.lastInput = (sf::Vector2f)input;
+            if (input.x == 0 && input.y == 0)
+                continue;
 
-        sf::Vector2f targetVel = ((sf::Vector2f)input).normalized() * mover.speed;
+            sf::Vector2f targetVel = ((sf::Vector2f)input).normalized() * mover.speed;
 
-        // Update player velocity component
-        PhysicsComp& playerVelComp = ev.registry->get<PhysicsComp>(entity);
-        sf::Vector2f deltaVel = targetVel - playerVelComp.velocity;
-        if (deltaVel != zeroVec)
-            playerVelComp.velocity += deltaVel.normalized() * mover.accel * ev.dt;
+            // Update player velocity component
+            PhysicsComp& playerVelComp = ev.registry->get<PhysicsComp>(entity);
+            sf::Vector2f deltaVel = targetVel - playerVelComp.velocity;
+            if (deltaVel != zeroVec)
+                playerVelComp.velocity += deltaVel.normalized() * mover.accel * ev.dt;
 
-        InputMovedEvent iEv((sf::Vector2f)input);
-        raise_local_event(*ev.registry, entity, iEv);
+            InputMovedEvent iEv((sf::Vector2f)input);
+            raise_local_event(*ev.registry, entity, iEv);
+        }
     }
 
     sf::RenderWindow& window = ev.registry->ctx().get<sf::RenderWindow>();

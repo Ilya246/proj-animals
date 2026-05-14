@@ -10,7 +10,8 @@ void CoreSystem::init(entt::registry& reg) {
 
 void CoreSystem::onUpdate(UpdateEvent& ev) {
     for (entt::entity e : delete_queue) {
-        ev.registry->destroy(e);
+        if (ev.registry->valid(e))
+            ev.registry->destroy(e);
     }
     delete_queue.clear();
 }

@@ -4,6 +4,7 @@
 #include "physics/system.hpp"
 #include "ui/components.hpp"
 #include "ui/events.hpp"
+#include "ui/system.hpp"
 #include "utility/geom.hpp"
 #include <SFML/Graphics/Rect.hpp>
 #include <SFML/System/Vector2.hpp>
@@ -49,13 +50,7 @@ void UIComp::set_hidden(bool hide, entt::registry& reg, entt::entity ent) {
 
     propagate(ev, ent, reg);
 
-    // TODO: maybe only resize relevant UI root
-    entt::entity world = Physics::getWorld(ent, reg);
-    if (reg.try_get<UIComp>(world)) {
-        if (auto* bounds = reg.try_get<BoundsComp>(world)) {
-            bounds->resize(bounds->bounds, world, reg);
-        }
-    }
+    UI::rebuild(ent, reg);
 }
 
 void UIComp::assign_stencil(std::optional<sf::FloatRect> stencil, entt::registry& reg, entt::entity ent) {

@@ -86,6 +86,11 @@ void handle_event(BoundsResizeEvent& ev, entt::entity ent, UILayoutComp& comp, e
     float maxAvailableMain = (comp.mode == UILayoutMode::Vertical) ? newBounds.size.y - paddingTotal * 2.f : newBounds.size.x - paddingTotal * 2.f;
     float maxAvailableCross = (comp.mode == UILayoutMode::Vertical) ? newBounds.size.x - paddingTotal * 2.f : newBounds.size.y - paddingTotal * 2.f;
 
+    if (comp.allowOverflow) {
+        maxAvailableMain = std::max(maxAvailableMain, totalNeededMain);
+        sumExpandWeight = 0.f; // Ignore expansion requests in main axis if we're configured to overflow instead
+    }
+
     float finalContentMain = sumExpandWeight > 0.f ? maxAvailableMain : std::min(maxAvailableMain, totalNeededMain);
     float finalContentCross = anyExpandCross ? maxAvailableCross : std::min(maxAvailableCross, maxMinCross);
 

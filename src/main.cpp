@@ -6,6 +6,7 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Window/WindowEnums.hpp>
 #include "editor/system.hpp"
+#include "physics/system.hpp"
 #include "utility/entity_builder.hpp"
 #include "utility/geom.hpp"
 #include "yaml-cpp/node/parse.h"
@@ -67,6 +68,8 @@ int main() {
         const float dt = clock.restart().asSeconds();
 
         // Event handling
+        bool hadText = false;
+        std::vector<KeyPressEvent> keyQ;
         while (const std::optional event = window.pollEvent()) {
             if (event->is<sf::Event::Closed>()) {
                 window.close();
@@ -101,17 +104,21 @@ int main() {
                 continue;
             }
             if (auto* keyEv = event->getIf<sf::Event::KeyPressed>()) {
-                bool handled = false;
-                KeyPressEvent pressEv{keyEv->code, &registry, &handled};
-                dispatcher.trigger(pressEv);
+                keyQ.emplace_back(keyEv->code, &registry, nullptr);
                 continue;
             }
             if (auto* textEv = event->getIf<sf::Event::TextEntered>()) {
                 bool handled = false;
                 GlobalTextEnteredEvent tEv{textEv->unicode, &registry, &handled};
                 dispatcher.trigger(tEv);
+                hadText = handled;
                 continue;
             }
+        }
+        for (KeyPressEvent& e : keyQ) {
+            bool handled = hadText;
+            e.handled = &handled;
+            dispatcher.trigger(e);
         }
 
         // Dispatch update event
@@ -217,34 +224,79 @@ void genUI(entt::registry& registry) {
 
     UIBuilder compPanel = editorContainer.child("Component Panel")
         .posFill()
-        .allocatorLayout(UILayoutMode::Vertical, 2.f, 2.f)
+        .allocatorLayout(UILayoutMode::Vertical, 0.f, 0.f)
+        .emplace<ComponentEditorUIComp>()
         .hide();
 
-    compPanel.child("TestTB1")
+    // Construct the parameter box container list
+    entt::entity paramsContainer = compPanel.child("Component Parameters")
         .posFill()
-        .rect(sf::Color(20, 20, 20), sf::Color::White, 1.f)
-        .textbox("hack", 12, sf::Color::White, [](std::string_view text, entt::entity, entt::registry&) {
-            std::cout << "Entered into Parameter A: " << text << std::endl;
-        })
-        .constraint(0.f, 20.f, true, false);
+        .allocatorLayout(UILayoutMode::Vertical, 0.f, 1.f)
+        .get();
 
-    compPanel.child("TestTB2")
+    registry.get<ComponentEditorUIComp>(compPanel).paramListContainer = paramsContainer;
+
+    compPanel.child("Component Dropdown")
         .posFill()
-        .rect(sf::Color(20, 20, 20), sf::Color::White, 1.f)
-        .textbox("hack", 12, sf::Color::White, [](std::string_view text, entt::entity, entt::registry&) {
-            std::cout << "Entered into Parameter B: " << text << std::endl;
-        })
-        .constraint(0.f, 20.f, true, false);
-        
-    compPanel.child("Delete Comp Button")
-        .posFill()
-        .rect(sf::Color(100, 60, 60), sf::Color::White, 1.f)
-        .button([](ClickEvent& ev, entt::entity, entt::registry&) {
-            std::cout << "Delete component clicked" << std::endl;
-            ev.handled = true;
-        })
-        .constraint(0.f, 20.f, true, false)
-        .childText("Delete Component", "hack", 12);
+        .rect(sf::Color(60, 60, 80), sf::Color(100, 100, 120), 1.f)
+        .constraint(0.f, 24.f, true, false)
+        .childText("Select Component...", "hack", 12)
+        .dropdownTrigger([](entt::registry& reg, entt::entity world, entt::entity trigger) {
+            entt::entity selectedEnt = entt::null;
+            for (auto [e, esc] : reg.view<EditorSelectedComp>().each()) { selectedEnt = e; break; }
+
+            sf::FloatRect triggerBounds = reg.get<BoundsComp>(trigger).bounds;
+            sf::Vector2f worldPos = Physics::getWorldPos(trigger, reg);
+
+            // Shift the list visually below the dropdown trigger.
+            sf::FloatRect listBounds{{worldPos.x, worldPos.y - 100.f}, {triggerBounds.size.x, 100.f}};
+
+            UIBuilder list = UIBuilder(reg, world, "Dropdown List")
+                .posAbsolute(listBounds)
+                .zIndex(z_ui + 1024)
+                .rect(sf::Color(40, 40, 40, 240), sf::Color(150, 150, 150, 200), 1.f)
+                .scrollable(DynamicBounds::full, sf::Color(30, 30, 30, 200), sf::Color(100, 100, 100), sf::Color(150, 150, 150), 1.f)
+                .allocatorLayout(UILayoutMode::Vertical, 2.f, 2.f, DynamicBounds::full, false)
+                .stencil()
+                .ensure<HoverListenerComp>(); // Required to intercept Hover checks and not instantly auto-close
+
+            auto& bounds = reg.get<BoundsComp>(list.get());
+            bounds.resize({{0.f, 0.f}, listBounds.size}, list.get(), reg);
+
+            if (selectedEnt != entt::null) {
+                bool hasComps = false;
+                for (const auto& name : ComponentSerializer::get_registered_types()) {
+                    if (ComponentSerializer::serialize(name, reg, selectedEnt)) {
+                        hasComps = true;
+                        list.child("DD Item " + name)
+                            .posFill()
+                            .constraint(0.f, 20.f, true, false)
+                            .rect(sf::Color(60, 60, 60), sf::Color::Transparent, 0.f)
+                            .button([name, listEnt = list.get()](ClickEvent& ev, entt::entity, entt::registry& r) {
+                                for(auto [e, ce] : r.view<ComponentEditorUIComp>().each()) {
+                                    ce.selectedComponent = name;
+                                }
+                                queue_delete(listEnt, r); // Selecting closes list immediately
+                                ev.handled = true;
+                            })
+                            .childText(name, "hack", 12);
+                    }
+                }
+                if (!hasComps) {
+                    list.child("DD Item Empty")
+                        .posFill()
+                        .constraint(0.f, 20.f, true, false)
+                        .childText("No Components Found", "hack", 12);
+                }
+            } else {
+                 list.child("DD Item None")
+                    .posFill()
+                    .constraint(0.f, 20.f, true, false)
+                    .childText("No Entity Selected", "hack", 12);
+            }
+
+            return list.get();
+        }, false); // don't open on hover by default
 
     UIBuilder tilePanel = editorContainer.child("Tile Panel")
         .posFill()
@@ -272,7 +324,7 @@ void genUI(entt::registry& registry) {
         .posFill()
         .rect(sf::Color(80, 80, 80), sf::Color(120, 120, 120), 1.f)
         .toggleButton(false, sf::Color(100, 150, 100), sf::Color(80, 80, 80),
-        [ent = tilePanel.get()](bool on, entt::entity self, entt::registry& reg) {    
+        [ent = tilePanel.get()](bool on, entt::entity self, entt::registry& reg) {
             reg.get<UIComp>(ent).set_hidden(!on, reg, self);
         })
         .constraint(0.f, 30.f, true, false)

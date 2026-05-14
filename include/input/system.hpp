@@ -10,7 +10,7 @@
 struct InputSystem : System<InputSystem> {
     private:
         virtual void init(entt::registry&) override;
-        virtual int initPriority() override { return 64; };
+        virtual int initPriority() override { return 0; };
 
         void update(const UpdateEvent&);
         void receiveClick(const GlobalClickEvent&);

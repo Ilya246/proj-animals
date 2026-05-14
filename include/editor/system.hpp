@@ -1,5 +1,6 @@
 #pragma once
 #include <entt/entt.hpp>
+#include "core/events.hpp"
 #include "core/system.hpp"
 #include "input/events.hpp"
 
@@ -17,6 +18,7 @@ private:
     virtual int initPriority() override { return -256; }
 
     void onGlobalClick(const GlobalClickEvent& ev);
+    void update(const UpdateEvent& ev);
 };
 
 entt::entity find_main_world(const entt::registry& reg);
