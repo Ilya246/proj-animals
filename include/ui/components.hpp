@@ -193,6 +193,31 @@ struct TextComp {
     REGISTER_SERIALIZABLE(TextComp, Text)
 };
 
+struct TextBoxComp {
+    sf::Text text;
+    std::string content = "";
+    bool clickDragged = false;
+    size_t maxChars = 2048;
+    size_t cursorPos = 0;
+    size_t viewPos = 0;
+    size_t lastCharsFit = 0;
+
+    bool selectionActive = false;
+    size_t selectionStart = 0;
+    size_t selectionEnd = 0;
+
+    std::function<void(std::string_view, entt::entity, entt::registry&)> onEnter = {};
+
+    void stringChanged(float width);
+    void eraseSelection(float width);
+    size_t getMouseCursorPos(float mouseX) const;
+
+    HANDLE_EVENT(TextBoxComp, ClickEvent)
+    HANDLE_EVENT(TextBoxComp, RenderEvent)
+    HANDLE_EVENT(TextBoxComp, UIQueryChildEvent)
+    HANDLE_EVENT(TextBoxComp, BoundsResizeEvent)
+};
+
 struct ToggleButtonComp {
     bool isToggled = false;
     std::function<void(bool, entt::entity, entt::registry&)> cb;

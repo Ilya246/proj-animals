@@ -129,11 +129,26 @@ struct UIBuilder {
         return *this;
     }
 
+    UIBuilder& textbox(const std::string& font, unsigned int size, sf::Color color = sf::Color::White, std::function<void(std::string_view, entt::entity, entt::registry&)>&& cb = {}) {
+        TextBoxComp& tb = reg.emplace<TextBoxComp>(ent, sf::Text(font_map[font], "", size));
+        tb.text.setFillColor(color);
+        tb.onEnter = std::move(cb);
+        return ensure<ClickListenerComp>();
+    }
+
     // Gives us a text child entity.
     // NOTE: also give us allocatorFull().
     UIBuilder& childText(const std::string& str, const std::string& font, unsigned int size, sf::Color color = sf::Color::White, bool wrap = true) {
         UIBuilder{reg, ent, "Text"}
             .text(str, font, size, color, wrap)
+            .posFill();
+
+        return allocatorFull();
+    }
+
+    UIBuilder& childTextbox(const std::string& font, unsigned int size, sf::Color color = sf::Color::White, std::function<void(std::string_view, entt::entity, entt::registry&)>&& cb = {}) {
+        UIBuilder{reg, ent, "TextBox"}
+            .textbox(font, size, color, std::move(cb))
             .posFill();
 
         return allocatorFull();

@@ -1,6 +1,7 @@
 #include "physics/components.hpp"
 #include "physics/system.hpp"
 #include "ui/components.hpp"
+#include "ui/system.hpp"
 
 template<>
 void handle_event(RenderEvent& ev, entt::entity ent, UIRectComp& comp, entt::registry& reg) {
@@ -108,6 +109,143 @@ void handle_event(RenderEvent& ev, entt::entity ent, TextComp& comp, entt::regis
     pos.y *= -1.f; // convert to draw-coordinates
     comp.text.setPosition(pos);
     ev.window.draw(comp.text);
+}
+
+static size_t fitText(const std::string& str, sf::Text& text, float maxWidth) {
+    text.setString(str);
+    if (maxWidth <= 0.f) return str.size();
+    float startX = text.findCharacterPos(0).x;
+    for (size_t i = 0; i < str.size(); i++) {
+        if (text.findCharacterPos(i).x - startX > maxWidth) {
+            text.setString(str.substr(0, i));
+            return str.size() - i;
+        }
+    }
+    return 0;
+}
+
+size_t TextBoxComp::getMouseCursorPos(float mouseX) const {
+    size_t strsize = text.getString().getSize();
+    if (strsize == 0) return 0;
+
+    float lastX = text.findCharacterPos(0).x;
+    for (size_t i = 1; i <= strsize; i++) {
+        float x = text.findCharacterPos(i).x;
+        if (mouseX < (lastX + x) / 2.f) return i - 1;
+        lastX = x;
+    }
+    return strsize;
+}
+
+void TextBoxComp::stringChanged(float width) {
+    std::string sub;
+    if (content.size() > 0) {
+        sub = content.substr(viewPos);
+        cursorPos = std::min(cursorPos, content.size());
+        viewPos = std::min(std::max(cursorPos, lastCharsFit) - lastCharsFit, viewPos);
+    } else {
+        sub = "";
+        cursorPos = 0;
+        viewPos = 0;
+        text.setString(sub);
+        return;
+    }
+
+    size_t overflow = fitText(sub, text, width);
+    lastCharsFit = content.size() - viewPos - overflow;
+
+    if (cursorPos > viewPos + lastCharsFit) {
+        viewPos = cursorPos - lastCharsFit;
+        stringChanged(width);
+    }
+}
+
+void TextBoxComp::eraseSelection(float width) {
+    size_t chars = std::max(selectionStart, selectionEnd) - std::min(selectionStart, selectionEnd);
+    content.erase(std::min(selectionStart, selectionEnd), chars);
+    cursorPos = std::min(cursorPos, std::max(selectionStart, cursorPos > chars ? cursorPos - chars : 0));
+    stringChanged(width);
+    selectionActive = false;
+    selectionStart = std::min(std::max(content.size(), (size_t)1) - 1, selectionStart);
+    selectionEnd = std::min(content.size(), selectionEnd);
+}
+
+template<>
+void handle_event(ClickEvent& ev, entt::entity ent, TextBoxComp& comp, entt::registry& reg) {
+    if (ev.button == sf::Mouse::Button::Left) {
+        if (ev.pressed) {
+            UISystem& sys = reg.ctx().get<UISystem>();
+            sys.activeTextbox = ent;
+
+            comp.cursorPos = std::min(comp.viewPos + comp.getMouseCursorPos(ev.worldCoords.x), comp.content.size());
+            comp.clickDragged = true;
+            comp.selectionStart = comp.cursorPos;
+            comp.selectionEnd = comp.cursorPos;
+            comp.selectionActive = false;
+            ev.handled = true;
+        } else {
+            if (comp.clickDragged) {
+                comp.clickDragged = false;
+                if (comp.selectionStart == comp.selectionEnd) {
+                    comp.selectionActive = false;
+                }
+                ev.handled = true;
+            }
+        }
+    }
+}
+
+template<>
+void handle_event(BoundsResizeEvent& ev, entt::entity, TextBoxComp& comp, entt::registry&) {
+    comp.stringChanged(ev.newBounds.size.x);
+}
+
+template<>
+void handle_event(UIQueryChildEvent& ev, entt::entity, TextBoxComp& comp, entt::registry&) {
+    ev.constraints.minWidth = std::max(ev.constraints.minWidth, 50.f);
+    ev.constraints.minHeight = std::max(ev.constraints.minHeight, (float)comp.text.getCharacterSize() + 4.f);
+}
+
+template<>
+void handle_event(RenderEvent& ev, entt::entity ent, TextBoxComp& comp, entt::registry& reg) {
+    sf::Vector2f pos = Physics::getWorldPos(ent, reg);
+    if (auto* boundsComp = reg.try_get<BoundsComp>(ent)) {
+        pos += boundsComp->bounds.position;
+        pos.y += boundsComp->bounds.size.y;
+    }
+    pos.y *= -1.f;
+
+    comp.text.setPosition(pos);
+
+    UISystem& sys = reg.ctx().get<UISystem>();
+    if (sys.activeTextbox == ent) {
+        if (comp.selectionActive && comp.selectionStart != comp.selectionEnd) {
+            float startX = comp.text.findCharacterPos(comp.selectionStart - comp.viewPos).x;
+            float endX = comp.text.findCharacterPos(comp.selectionEnd - comp.viewPos).x;
+            float startY = pos.y;
+
+            float selX = std::min(startX, endX);
+            float selW = std::abs(endX - startX);
+            sf::RectangleShape sel(sf::Vector2f(selW, comp.text.getCharacterSize() + 4.f));
+            sel.setPosition(sf::Vector2f(selX, startY));
+            sel.setFillColor(sf::Color(162, 162, 255, 128));
+            ev.window.draw(sel);
+        }
+    }
+
+    ev.window.draw(comp.text);
+
+    if (sys.activeTextbox == ent) {
+        uint64_t ticks = reg.ctx().get<uint64_t>();
+        if ((ticks / 30) % 2 == 0) {
+            sf::RectangleShape cursor(sf::Vector2f(2.f, comp.text.getCharacterSize()));
+            cursor.setFillColor(sf::Color::White);
+            float cursorX = comp.text.findCharacterPos(comp.cursorPos - comp.viewPos).x;
+            float cursorY = pos.y;
+            cursor.setPosition(sf::Vector2f(cursorX, cursorY));
+            ev.window.draw(cursor);
+        }
+    }
 }
 
 template<>

@@ -4,6 +4,8 @@
 #include "input/events.hpp"
 
 struct UISystem : System<UISystem> {
+    entt::entity activeTextbox = entt::null;
+
     private:
         virtual void init(entt::registry&) override;
         virtual int initPriority() override { return -16; };
@@ -12,4 +14,5 @@ struct UISystem : System<UISystem> {
         void onScreenResize(const ScreenResizeEvent&);
         void onGlobalMouseMove(const GlobalMouseMoveEvent&);
         void onGlobalKeyPress(const KeyPressEvent&);
+        void onGlobalTextEntered(const GlobalTextEnteredEvent&);
 };

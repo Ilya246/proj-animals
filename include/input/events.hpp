@@ -48,6 +48,12 @@ struct KeyPressEvent {
     bool* handled;
 };
 
+struct GlobalTextEnteredEvent {
+    uint32_t unicode;
+    entt::registry* registry;
+    bool* handled;
+};
+
 struct InputMovedEvent {
     sf::Vector2f input;
 };

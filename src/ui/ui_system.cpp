@@ -7,12 +7,14 @@
 #include "ui/builder.hpp"
 #include "ui/system.hpp"
 #include "ui/components.hpp"
+#include <SFML/Window/Clipboard.hpp>
 
 void UISystem::init(entt::registry& reg) {
     subscribe_global_event<UpdateEvent, &UISystem::update>(reg, this);
     subscribe_global_event<ScreenResizeEvent, &UISystem::onScreenResize>(reg, this);
     subscribe_global_event<GlobalMouseMoveEvent, &UISystem::onGlobalMouseMove>(reg, this);
     subscribe_global_event<KeyPressEvent, &UISystem::onGlobalKeyPress>(reg, this);
+    subscribe_global_event<GlobalTextEnteredEvent, &UISystem::onGlobalTextEntered>(reg, this);
 
     // Load fonts
     const std::filesystem::path fonts_path("resources/fonts");
@@ -110,9 +112,201 @@ void UISystem::onGlobalMouseMove(const GlobalMouseMoveEvent& ev) {
         sf::Vector2f deltaRelative = newRelative - drag.anchorCoords;
         pos.position += deltaRelative;
     }
+
+    if (reg.valid(activeTextbox)) {
+        if (auto* tb = reg.try_get<TextBoxComp>(activeTextbox)) {
+            if (tb->clickDragged) {
+                if (!sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
+                    tb->clickDragged = false;
+                    if (tb->selectionStart == tb->selectionEnd) {
+                        tb->selectionActive = false;
+                    }
+                } else {
+                    auto [world, selfPos] = Physics::getWorldAndPos(activeTextbox, reg);
+                    auto mousePosMaybe = Input::get_world_mouse_pos(ev.pixelCoords, world, reg);
+                    if (mousePosMaybe) {
+                        sf::Vector2f mousePos = *mousePosMaybe;
+                        tb->selectionEnd = std::min(tb->viewPos + tb->getMouseCursorPos(mousePos.x), tb->content.size());
+                        tb->cursorPos = tb->selectionEnd;
+                        if (tb->selectionStart != tb->selectionEnd) tb->selectionActive = true;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void UISystem::onGlobalTextEntered(const GlobalTextEnteredEvent& ev) {
+    if (!ev.registry->valid(activeTextbox)) return;
+    if (auto* tb = ev.registry->try_get<TextBoxComp>(activeTextbox)) {
+        if (ev.unicode > 31 && ev.unicode < 128 && (tb->selectionActive || tb->content.size() < tb->maxChars)) {
+            float width = ev.registry->get<BoundsComp>(activeTextbox).bounds.size.x;
+            if (tb->selectionActive) tb->eraseSelection(width);
+            tb->content.insert(tb->cursorPos, 1, (char)ev.unicode);
+            tb->cursorPos++;
+            tb->stringChanged(width);
+            *ev.handled = true;
+        }
+    }
 }
 
 void UISystem::onGlobalKeyPress(const KeyPressEvent& ev) {
+    if (ev.registry->valid(activeTextbox)) {
+        if (auto* tb = ev.registry->try_get<TextBoxComp>(activeTextbox)) {
+            bool handled = true;
+            float width = ev.registry->get<BoundsComp>(activeTextbox).bounds.size.x;
+
+            auto& fullString = tb->content;
+            auto& cursorPos = tb->cursorPos;
+            auto& selectionActive = tb->selectionActive;
+
+            switch (ev.key) {
+                case sf::Keyboard::Key::Enter: {
+                    if (tb->onEnter) tb->onEnter(tb->content, activeTextbox, *ev.registry);
+                    activeTextbox = entt::null;
+                    break;
+                }
+                case sf::Keyboard::Key::Escape: {
+                    activeTextbox = entt::null;
+                    break;
+                }
+                case sf::Keyboard::Key::Backspace: {
+                    if (selectionActive) {
+                        tb->eraseSelection(width);
+                    } else if (fullString.size() > 0 && cursorPos > 0) {
+                        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl)) {
+                            size_t from = cursorPos;
+                            cursorPos--;
+                            while (cursorPos > 0 && !(fullString[cursorPos - 1] == ' ' && fullString[cursorPos] != ' ')) {
+                                cursorPos--;
+                            }
+                            fullString.erase(cursorPos, from - cursorPos);
+                        } else {
+                            fullString.erase(cursorPos - 1, 1);
+                            cursorPos = cursorPos - 1;
+                        }
+                        tb->stringChanged(width);
+                    }
+                    break;
+                }
+                case sf::Keyboard::Key::Delete: {
+                    if (selectionActive) {
+                        tb->eraseSelection(width);
+                    } else if (fullString.size() > 0 && cursorPos < fullString.size()) {
+                        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl)) {
+                            size_t from = cursorPos;
+                            cursorPos++;
+                            while (cursorPos < fullString.size() && !(fullString[cursorPos - 1] != ' ' && fullString[cursorPos] == ' ')) {
+                                cursorPos++;
+                            }
+                            fullString.erase(from, cursorPos - from);
+                        } else {
+                            fullString.erase(cursorPos, 1);
+                        }
+                        tb->stringChanged(width);
+                    }
+                    break;
+                }
+                case sf::Keyboard::Key::Left: {
+                    if (fullString.size() == 0 || cursorPos == 0) break;
+                    bool shiftHeld = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift);
+                    size_t oldPos = cursorPos;
+                    if (selectionActive && !shiftHeld) {
+                        cursorPos = std::min(tb->selectionStart, tb->selectionEnd);
+                        selectionActive = false;
+                    } else {
+                        cursorPos--;
+                    }
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl)) {
+                        while (cursorPos > 0 && !(fullString[cursorPos - 1] == ' ' && fullString[cursorPos] != ' ')) {
+                            cursorPos--;
+                        }
+                    }
+                    if (shiftHeld) {
+                        if (!selectionActive) {
+                            selectionActive = true;
+                            tb->selectionStart = oldPos;
+                        }
+                        tb->selectionEnd = cursorPos;
+                    }
+                    tb->viewPos = std::min(cursorPos, tb->viewPos);
+                    tb->stringChanged(width);
+                    break;
+                }
+                case sf::Keyboard::Key::Right: {
+                    if (cursorPos == fullString.size()) break;
+                    bool shiftHeld = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift);
+                    size_t oldPos = cursorPos;
+                    if (selectionActive && !shiftHeld) {
+                        cursorPos = std::max(tb->selectionStart, tb->selectionEnd);
+                        selectionActive = false;
+                    } else {
+                        cursorPos = std::min(cursorPos + 1, fullString.size());
+                    }
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl)) {
+                        while (cursorPos < fullString.size() && !(fullString[cursorPos - 1] != ' ' && fullString[cursorPos] == ' ')) {
+                            cursorPos++;
+                        }
+                    }
+                    if (shiftHeld) {
+                        if (!selectionActive) {
+                            selectionActive = true;
+                            tb->selectionStart = oldPos;
+                        }
+                        tb->selectionEnd = cursorPos;
+                    }
+                    tb->stringChanged(width);
+                    break;
+                }
+                case sf::Keyboard::Key::A: {
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl)) {
+                        selectionActive = true;
+                        tb->selectionStart = 0;
+                        tb->selectionEnd = fullString.size();
+                    } else { handled = false; }
+                    break;
+                }
+                case sf::Keyboard::Key::C: {
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl) && selectionActive) {
+                        sf::Clipboard::setString(fullString.substr(std::min(tb->selectionStart, tb->selectionEnd), std::max(tb->selectionStart, tb->selectionEnd) - std::min(tb->selectionStart, tb->selectionEnd)));
+                    } else { handled = false; }
+                    break;
+                }
+                case sf::Keyboard::Key::V: {
+                    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl)) {
+                        std::string pasted = sf::Clipboard::getString().toAnsiString();
+                        pasted.erase(std::remove_if(pasted.begin(), pasted.end(), [](char c) { return c < 32 || c > 126; }), pasted.end());
+                        size_t selection = selectionActive ? std::max(tb->selectionStart, tb->selectionEnd) - std::min(tb->selectionStart, tb->selectionEnd) : 0;
+                        if (fullString.size() + pasted.size() - selection > tb->maxChars) {
+                            pasted = pasted.substr(0, tb->maxChars - fullString.size() + selection);
+                        }
+                        if (selectionActive) {
+                            fullString.replace(std::min(tb->selectionStart, tb->selectionEnd), selection, pasted);
+                            tb->selectionStart = std::min(tb->selectionStart, tb->selectionEnd);
+                            tb->selectionEnd = tb->selectionStart + pasted.size();
+                        } else {
+                            fullString.insert(cursorPos, pasted);
+                        }
+                        cursorPos += pasted.size() - selection;
+                        tb->stringChanged(width);
+                    } else { handled = false; }
+                    break;
+                }
+                default:
+                    if (ev.key < sf::Keyboard::Key::F1 || ev.key > sf::Keyboard::Key::F15) {
+                        handled = true; // swallow ordinary character keys so we don't trigger game actions while typing
+                    } else {
+                        handled = false;
+                    }
+                    break;
+            }
+            if (handled) {
+                *ev.handled = true;
+                return;
+            }
+        }
+    }
+
     auto triggerView = ev.registry->view<ButtonToggledUIComp, UIComp>();
     for (auto [entity, toggled, ui] : triggerView.each()) {
         if (ev.key == toggled.triggerKey)

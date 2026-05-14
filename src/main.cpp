@@ -106,6 +106,12 @@ int main() {
                 dispatcher.trigger(pressEv);
                 continue;
             }
+            if (auto* textEv = event->getIf<sf::Event::TextEntered>()) {
+                bool handled = false;
+                GlobalTextEnteredEvent tEv{textEv->unicode, &registry, &handled};
+                dispatcher.trigger(tEv);
+                continue;
+            }
         }
 
         // Dispatch update event
@@ -211,9 +217,34 @@ void genUI(entt::registry& registry) {
 
     UIBuilder compPanel = editorContainer.child("Component Panel")
         .posFill()
-        .childText(std::string(60, 'a'), "hack", 12)
-        .constraint(0.f, 32.f, true, true)
+        .allocatorLayout(UILayoutMode::Vertical, 2.f, 2.f)
         .hide();
+
+    compPanel.child("TestTB1")
+        .posFill()
+        .rect(sf::Color(20, 20, 20), sf::Color::White, 1.f)
+        .textbox("hack", 12, sf::Color::White, [](std::string_view text, entt::entity, entt::registry&) {
+            std::cout << "Entered into Parameter A: " << text << std::endl;
+        })
+        .constraint(0.f, 20.f, true, false);
+
+    compPanel.child("TestTB2")
+        .posFill()
+        .rect(sf::Color(20, 20, 20), sf::Color::White, 1.f)
+        .textbox("hack", 12, sf::Color::White, [](std::string_view text, entt::entity, entt::registry&) {
+            std::cout << "Entered into Parameter B: " << text << std::endl;
+        })
+        .constraint(0.f, 20.f, true, false);
+        
+    compPanel.child("Delete Comp Button")
+        .posFill()
+        .rect(sf::Color(100, 60, 60), sf::Color::White, 1.f)
+        .button([](ClickEvent& ev, entt::entity, entt::registry&) {
+            std::cout << "Delete component clicked" << std::endl;
+            ev.handled = true;
+        })
+        .constraint(0.f, 20.f, true, false)
+        .childText("Delete Component", "hack", 12);
 
     UIBuilder tilePanel = editorContainer.child("Tile Panel")
         .posFill()

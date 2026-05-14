@@ -1,7 +1,9 @@
 #include <SFML/Graphics/Rect.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <entt/entt.hpp>
+#include <stdexcept>
 
+#include "core/components.hpp"
 #include "core/events.hpp"
 #include "entt/entity/fwd.hpp"
 #include "physics/components.hpp"
@@ -249,9 +251,11 @@ entt::entity PositionComp::parent() const {
 }
 
 void PositionComp::setParent(entt::entity to, entt::entity self, entt::registry& reg) {
-    if (reg.valid(_parent)) {
+    if (_parent != self && reg.valid(_parent)) {
         PositionComp& ppos = reg.get<PositionComp>(_parent);
         auto at = std::find(ppos.children.begin(), ppos.children.end(), to);
+        if (at == ppos.children.end())
+            throw std::runtime_error(std::format("Found invalid-parented entity {}: parented to {}, but not in child list", get_ent_name(self, reg), get_ent_name(to, reg)));
         ppos.children.erase(at);
     }
 
