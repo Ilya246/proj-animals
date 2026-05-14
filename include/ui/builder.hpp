@@ -122,7 +122,7 @@ struct UIBuilder {
         return emplace<UIRectComp>(fill, border, thickness);
     }
 
-    UIBuilder& text(const std::string& str, const std::string& font, unsigned int size, sf::Color color = sf::Color::White, bool wrap = false) {
+    UIBuilder& text(const std::string& str, const std::string& font, unsigned int size, sf::Color color = sf::Color::White, bool wrap = true) {
         TextComp& t = reg.emplace<TextComp>(ent, sf::Text(font_map[font], str, size));
         t.text.setFillColor(color);
         t.wrap = wrap;
@@ -131,7 +131,7 @@ struct UIBuilder {
 
     // Gives us a text child entity.
     // NOTE: also give us allocatorFull().
-    UIBuilder& childText(const std::string& str, const std::string& font, unsigned int size, sf::Color color = sf::Color::White, bool wrap = false) {
+    UIBuilder& childText(const std::string& str, const std::string& font, unsigned int size, sf::Color color = sf::Color::White, bool wrap = true) {
         UIBuilder{reg, ent, "Text"}
             .text(str, font, size, color, wrap)
             .posFill();

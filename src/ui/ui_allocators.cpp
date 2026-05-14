@@ -16,6 +16,16 @@ LayoutConstraints query_child_constraints(entt::registry& reg, entt::entity chil
     return c;
 }
 
+std::vector<entt::entity> get_visible_children(const std::vector<entt::entity>& from, entt::registry& reg) {
+    std::vector<entt::entity> ret;
+    for (entt::entity child : from) {
+        if (UIComp* ui = reg.try_get<UIComp>(child))
+            if (!ui->_parentHidden && !ui->selfHidden)
+                ret.push_back(child);
+    }
+    return ret;
+}
+
 template<>
 void handle_event(BoundsResizeEvent& ev, entt::entity ent, UIFullAllocatorComp& comp, entt::registry& reg) {
     sf::FloatRect newBounds = apply_dynamic_bounds(ev.newBounds, comp.bounds);
@@ -24,7 +34,7 @@ void handle_event(BoundsResizeEvent& ev, entt::entity ent, UIFullAllocatorComp& 
     ui.allocatedBounds = newBounds;
     newBounds.position += ui.childOffset;
 
-    const std::vector<entt::entity>& children = ui.children;
+    const std::vector<entt::entity> children = get_visible_children(ui.children, reg);
     for (entt::entity child : children) {
         raise_local_event(reg, child, UISizeAllocatedEvent{newBounds});
     }
@@ -37,7 +47,7 @@ void handle_event(BoundsResizeEvent& ev, entt::entity ent, UILayoutComp& comp, e
      if (newBounds.size.x <= 0.f || newBounds.size.y <= 0.f) return;
 
     UIComp& ui = reg.get<UIComp>(ent);
-    const std::vector<entt::entity>& children = ui.children;
+    const std::vector<entt::entity> children = get_visible_children(ui.children, reg);
     float borderInset = 0.f;
     if (UIRectComp* rect = reg.try_get<UIRectComp>(ent)) borderInset = rect->borderThickness;
     float paddingTotal = borderInset + comp.padding;
@@ -54,7 +64,7 @@ void handle_event(BoundsResizeEvent& ev, entt::entity ent, UILayoutComp& comp, e
     float sumMinMain = 0.f, sumExpandWeight = 0.f, maxMinCross = 0.f;
     bool anyExpandCross = false;
 
-    for (auto child : children) {
+    for (entt::entity child : children) {
         LayoutConstraints c = query_child_constraints(reg, child);
         childConstraints.push_back(c);
         if (comp.mode == UILayoutMode::Vertical) {
@@ -129,7 +139,7 @@ void handle_event(BoundsResizeEvent& ev, entt::entity ent, UITileLayoutComp& com
 
     float borderTop = 0.f, borderBottom = 0.f;
     float borderLeft = 0.f, borderRight = 0.f;
-    if (auto* rect = reg.try_get<UIRectComp>(ent)) {
+    if (UIRectComp* rect = reg.try_get<UIRectComp>(ent)) {
         float bt = rect->borderThickness;
         borderTop = borderBottom = borderLeft = borderRight = bt;
     }
@@ -144,7 +154,7 @@ void handle_event(BoundsResizeEvent& ev, entt::entity ent, UITileLayoutComp& com
     sf::FloatRect contentRect {{contentLeft, contentBottom}, {contentWidth, contentHeight}};
 
     UIComp& ui = reg.get<UIComp>(ent);
-    const std::vector<entt::entity>& children = ui.children;
+    const std::vector<entt::entity> children = get_visible_children(ui.children, reg);
 
     if (children.empty()) return;
 
@@ -203,12 +213,12 @@ void handle_event(UIQueryChildEvent& ev, entt::entity, UITileLayoutComp&, entt::
 
 template<>
 void handle_event(UIQueryChildEvent& ev, entt::entity ent, UILayoutComp& comp, entt::registry& reg) {
-    auto& ui = reg.get<UIComp>(ent);
+    UIComp& ui = reg.get<UIComp>(ent);
     float totalMinWidth = 0.f, totalMinHeight = 0.f;
     bool expandX = false, expandY = false;
 
     int childCount = 0;
-    for (auto child : ui.children) {
+    for (entt::entity child : get_visible_children(ui.children, reg)) {
         LayoutConstraints c = query_child_constraints(reg, child);
         if (comp.mode == UILayoutMode::Vertical) {
             totalMinHeight += c.minHeight;
@@ -228,7 +238,7 @@ void handle_event(UIQueryChildEvent& ev, entt::entity ent, UILayoutComp& comp, e
     totalMinWidth += comp.padding * 2.f;
     totalMinHeight += comp.padding * 2.f;
 
-    if (auto* rect = reg.try_get<UIRectComp>(ent)) {
+    if (UIRectComp* rect = reg.try_get<UIRectComp>(ent)) {
         totalMinWidth += rect->borderThickness * 2.f;
         totalMinHeight += rect->borderThickness * 2.f;
     }
@@ -241,10 +251,10 @@ void handle_event(UIQueryChildEvent& ev, entt::entity ent, UILayoutComp& comp, e
 
 template<>
 void handle_event(UIQueryChildEvent& ev, entt::entity ent, UIFullAllocatorComp&, entt::registry& reg) {
-    auto& ui = reg.get<UIComp>(ent);
+    UIComp& ui = reg.get<UIComp>(ent);
     float maxMinWidth = 0.f, maxMinHeight = 0.f;
     bool expandX = false, expandY = false;
-    for (auto child : ui.children) {
+    for (entt::entity child : get_visible_children(ui.children, reg)) {
         LayoutConstraints c = query_child_constraints(reg, child);
         maxMinWidth = std::max(maxMinWidth, c.minWidth);
         maxMinHeight = std::max(maxMinHeight, c.minHeight);

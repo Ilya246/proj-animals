@@ -161,18 +161,18 @@ void handle_event(ClickEvent& ev, entt::entity ent, ToggleButtonComp& comp, entt
     if (!ev.pressed) return;
 
     comp.isToggled = !comp.isToggled;
-    if (auto* rect = reg.try_get<UIRectComp>(ent)) {
+    if (UIRectComp* rect = reg.try_get<UIRectComp>(ent)) {
         rect->fillColor = comp.isToggled ? comp.onColor : comp.offColor;
     }
     if (comp.cb) comp.cb(comp.isToggled, ent, reg);
 
     if (comp.isToggled) {
-        for (auto exEnt : comp.exclusiveGroup) {
+        for (entt::entity exEnt : comp.exclusiveGroup) {
             if (reg.valid(exEnt) && exEnt != ent) {
-                if (auto* exComp = reg.try_get<ToggleButtonComp>(exEnt)) {
+                if (ToggleButtonComp* exComp = reg.try_get<ToggleButtonComp>(exEnt)) {
                     if (exComp->isToggled) {
                         exComp->isToggled = false;
-                        if (auto* exRect = reg.try_get<UIRectComp>(exEnt)) {
+                        if (UIRectComp* exRect = reg.try_get<UIRectComp>(exEnt)) {
                             exRect->fillColor = exComp->offColor;
                         }
                         if (exComp->cb) exComp->cb(false, exEnt, reg);

@@ -209,6 +209,18 @@ void genUI(entt::registry& registry) {
         .emplace<EditorComp>()
         .buttonToggled(sf::Keyboard::Key::F3);
 
+    UIBuilder compPanel = editorContainer.child("Component Panel")
+        .posFill()
+        .childText(std::string(60, 'a'), "hack", 12)
+        .constraint(0.f, 32.f, true, true)
+        .hide();
+
+    UIBuilder tilePanel = editorContainer.child("Tile Panel")
+        .posFill()
+        .childText(std::string(60, 'b'), "hack", 12)
+        .constraint(0.f, 32.f, true, true)
+        .hide();
+
     UIBuilder selectorPanel = editorContainer.child("Selector Panel")
         .posFill()
         .rect(sf::Color(50, 50, 50, 200), sf::Color(100, 100, 100), 1.f)
@@ -216,10 +228,10 @@ void genUI(entt::registry& registry) {
 
     entt::entity tbComp = selectorPanel.child("Comp Editor TB")
         .posFill()
-        .rect(sf::Color(100, 150, 100), sf::Color(120, 120, 120), 1.f)
-        .toggleButton(true, sf::Color(100, 150, 100), sf::Color(80, 80, 80),[](bool on, entt::entity, entt::registry&) {
-            if (on) std::cout << "Comp Editor ON!\n";
-            else std::cout << "Comp Editor OFF!\n";
+        .rect(sf::Color(80, 80, 80), sf::Color(120, 120, 120), 1.f)
+        .toggleButton(false, sf::Color(100, 150, 100), sf::Color(80, 80, 80),
+        [ent = compPanel.get()] (bool on, entt::entity self, entt::registry& reg) {
+            reg.get<UIComp>(ent).set_hidden(!on, reg, self);
         })
         .constraint(0.f, 30.f, true, false)
         .childText("Comp", "hack", 12)
@@ -228,9 +240,9 @@ void genUI(entt::registry& registry) {
     entt::entity tbTile = selectorPanel.child("Tile Editor TB")
         .posFill()
         .rect(sf::Color(80, 80, 80), sf::Color(120, 120, 120), 1.f)
-        .toggleButton(false, sf::Color(100, 150, 100), sf::Color(80, 80, 80),[](bool on, entt::entity, entt::registry&) {
-            if (on) std::cout << "Tile Editor ON!\n";
-            else std::cout << "Tile Editor OFF!\n";
+        .toggleButton(false, sf::Color(100, 150, 100), sf::Color(80, 80, 80),
+        [ent = tilePanel.get()](bool on, entt::entity self, entt::registry& reg) {    
+            reg.get<UIComp>(ent).set_hidden(!on, reg, self);
         })
         .constraint(0.f, 30.f, true, false)
         .text("Tile", "hack", 12)
@@ -245,20 +257,21 @@ void genUI(entt::registry& registry) {
         .allocatorLayout(UILayoutMode::Horizontal, 2.f, 2.f, DynamicBounds::full);
 
     auto makeModeButton = [&](const std::string& text, EditorMode mode) {
-        topPanel.child(text + " Button")
+        return topPanel.child(text + " Button")
             .posFill()
             .rect(sf::Color(80, 80, 100, 200), sf::Color(120, 120, 140), 1.f)
-            .button([mode](ClickEvent& ev, entt::entity, entt::registry& reg) {
+             .toggleButton(mode == EditorMode::None, sf::Color(100, 100, 150), sf::Color(80, 80, 100),
+             [mode](bool on, entt::entity, entt::registry& reg) {
                 auto& sys = reg.ctx().get<EditorSystem>();
-                sys.mode = sys.mode == mode ? EditorMode::None : mode;
-                ev.handled = true;
+                if (on) sys.mode = mode;
+                else if (sys.mode == mode) sys.mode = EditorMode::None;
             })
             .childText(text, "hack", 14)
             .constraint(0.f, 30.f, true, false)
             .tooltip("This is the " + text + " mode button.");
     };
 
-    makeModeButton("[]", EditorMode::Select);
+    entt::entity btnSelect = makeModeButton("[]", EditorMode::Select);
 
     topPanel.child("Delete Button")
         .posFill()
@@ -274,8 +287,12 @@ void genUI(entt::registry& registry) {
         .constraint(0.f, 30.f, true, false)
         .tooltip("Deletes the selected entity.");
 
-    makeModeButton("+", EditorMode::Spawn);
-    makeModeButton("M", EditorMode::None);
+    entt::entity btnSpawn = makeModeButton("+", EditorMode::Spawn);
+    entt::entity btnNone = makeModeButton("M", EditorMode::None);
+
+    registry.get<ToggleButtonComp>(btnSelect).exclusiveGroup = {btnSpawn, btnNone};
+    registry.get<ToggleButtonComp>(btnSpawn).exclusiveGroup = {btnSelect, btnNone};
+    registry.get<ToggleButtonComp>(btnNone).exclusiveGroup = {btnSelect, btnSpawn};
 
     editorContainer.hide();
 }

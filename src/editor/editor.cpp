@@ -29,9 +29,11 @@ bool haveEditor(entt::registry& reg) {
 
 template<>
 void handle_event(RenderEvent& ev, entt::entity ent, EditorSelectedComp&, entt::registry& reg) {
-    auto* boundsComp = reg.try_get<BoundsComp>(ent);
+    BoundsComp* boundsComp = reg.try_get<BoundsComp>(ent);
     if (!boundsComp) return;
     if (!haveEditor(reg)) return;
+    EditorSystem& sys = reg.ctx().get<EditorSystem>();
+    if (sys.mode != EditorMode::Select) return;
 
     sf::FloatRect bounds = boundsComp->bounds;
     sf::Vector2f worldPos = Physics::getWorldPos(ent, reg);
