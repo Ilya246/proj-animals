@@ -165,6 +165,10 @@ void TextBoxComp::stringChanged(float width) {
         viewPos = cursorPos - lastCharsFit;
         stringChanged(width);
     }
+    if (cursorPos < viewPos) {
+        viewPos = cursorPos;
+        stringChanged(width);
+    }
 }
 
 void TextBoxComp::eraseSelection(float width) {
